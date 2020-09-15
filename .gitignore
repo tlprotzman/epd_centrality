@@ -1,0 +1,4 @@
+.vscode/*
+StRoot/*
+*.root
+*.zip
