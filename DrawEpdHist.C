@@ -1,3 +1,8 @@
+/*
+* This seems to as the name implies just draw the histogram from the preprocessed
+* data.
+*/
+
 #include "TROOT.h"
 #include "TFile.h"
 #include "TChain.h"
@@ -23,33 +28,34 @@ void DrawEpdHist(std::string infile = "out.root"){
     TFile *_file0 = TFile::Open(infile.c_str());
     TH1* mNmipDists[2][12][31];
     TH1* mAdcDists[2][12][31];
-    TH2* hRingvsRegMult[2][16];
+    TH2* hRingvsRegMult[2][16]; // The distribution that's getting plotted, ring multiplicity vs TPC multiplicity?
     
-    // 1D histograms for nMIP distributions
-    for (int ew=0; ew<2; ew++){
-        for (int pp=1; pp<13; pp++){
-            for (int tt=1; tt<32; tt++){
-                mNmipDists[ew][pp-1][tt-1] = (TH1*)gROOT->FindObject(Form("NmipEW%dPP%dTT%d",ew,pp,tt));
-                mAdcDists[ew][pp-1][tt-1] = (TH1*)gROOT->FindObject(Form("ADCEW%dPP%dTT%d",ew,pp,tt));
-            }
-        }
+    // 1D histograms for nMIP distributions  
+    for (int east_west=0; east_west<2; east_west++){    // 0 = east, 1 = west
+        // for (int pp=1; pp<13; pp++){
+        //     for (int tt=1; tt<32; tt++){
+        //         mNmipDists[east_west][pp-1][tt-1] = (TH1*)gROOT->FindObject(Form("NmipEW%dPP%dTT%d",east_west,pp,tt));
+        //         mAdcDists[east_west][pp-1][tt-1] = (TH1*)gROOT->FindObject(Form("ADCEW%dPP%dTT%d",east_west,pp,tt));
+        //     }
+        // }
         for (int r = 0;r<16;r++){
-            hRingvsRegMult[ew][r] = (TH2*)gROOT->FindObject(Form("hRingvsRegMultEW%iRing%i",ew,r+1));
+            hRingvsRegMult[east_west][r] = (TH2*)gROOT->FindObject(Form("hRingvsRegMultEW%iRing%i",east_west,r+1));
         }
     }
     
     TCanvas* can1 = new TCanvas("can1","",4000,4000);
     can1->Divide(4,4);
+    const int east_west = 1;
     for (int ring = 1;ring < 17; ring++){
         can1->cd(ring);
         gPad->SetLogz();
-        hRingvsRegMult[0][ring-1]->Draw("COLZ");
-        hRingvsRegMult[0][ring-1]->GetYaxis()->SetRangeUser(0,100);
-        hRingvsRegMult[0][ring-1]->GetXaxis()->SetRangeUser(0,300);
+        hRingvsRegMult[east_west][ring-1]->Draw("COLZ");
+        hRingvsRegMult[east_west][ring-1]->GetYaxis()->SetRangeUser(0,100);
+        hRingvsRegMult[east_west][ring-1]->GetXaxis()->SetRangeUser(0,300);
         TLegend* leg1 = new TLegend(0.5,0.5,0.85,0.85);
         SetLeg(leg1,0.07);
-        leg1->AddEntry(hRingvsRegMult[0][ring-1],"East","");
-        leg1->AddEntry(hRingvsRegMult[0][ring-1],Form("Ring %i",ring),"");
+        leg1->AddEntry(hRingvsRegMult[east_west][ring-1],(east_west == 0 ?"East" : "West"), "");
+        leg1->AddEntry(hRingvsRegMult[east_west][ring-1],Form("Ring %i",ring),"");
         leg1->Draw();
     }
     can1->Draw();
