@@ -28,6 +28,8 @@
 #include "TH1.h"
 #include "TH2.h"
 #include "TMath.h"
+#include "TMatrixD.h"
+#include "TVectorD.h"
 
 // PicoDst headers
 #include "StRoot/StPicoEvent/StPicoDstReader.h"
@@ -51,7 +53,7 @@ R__LOAD_LIBRARY(StRoot/StPicoEvent/libStPicoDst)
 //          name1.picoDst.root files
 
 //_________________
-void PicoDstAnalyzer(const Char_t *inFile = "../files/st_physics_12126101_raw_3040006.picoDst.root") {
+void PicoDstAnalyzer(const Char_t *inFile = "st_physics_21248001_raw_3000001.picoDst.root") {
     
     std::cout << "Hi! Lets do some physics, Master!" << std::endl;
     
@@ -112,6 +114,10 @@ void PicoDstAnalyzer(const Char_t *inFile = "../files/st_physics_12126101_raw_30
             
         }
     }
+
+    TMatrixD *sums = new TMatrixD(16, 4);
+    TVectorD *reference = new TVectorD(4);
+    uint32_t numEvents = 0;
     
     
     // Loop over events
@@ -137,7 +143,7 @@ void PicoDstAnalyzer(const Char_t *inFile = "../files/st_physics_12126101_raw_30
         }
         
         //Select good events
-        if ( abs(event->primaryVertex().Z()) > 70)
+        if ( abs(event->primaryVertex().Z()) > 70)  // what is 70?
             continue;
         float Vr = sqrt(event->primaryVertex().X()*event->primaryVertex().X()+event->primaryVertex().Y()*event->primaryVertex().X());
         if (Vr > 2)
@@ -161,6 +167,7 @@ void PicoDstAnalyzer(const Char_t *inFile = "../files/st_physics_12126101_raw_30
         }
         for (UInt_t iepd = 0;iepd<Nepd;iepd++){
             StPicoEpdHit* epdhit = dst->epdHit(iepd);
+            // epdhit->Print();
             
             int ew;
             if (epdhit->side() < 0)
@@ -168,7 +175,7 @@ void PicoDstAnalyzer(const Char_t *inFile = "../files/st_physics_12126101_raw_30
             else
                 ew = 1;
             float nMip;
-            if (epdhit->nMIP() < 0.2)
+            if (epdhit->nMIP() < 0.2)   // some kind of clamping between 0.2 and 2?
                 nMip = 0;
             else if (epdhit->nMIP() > 2)
                 nMip = 2;
@@ -183,6 +190,17 @@ void PicoDstAnalyzer(const Char_t *inFile = "../files/st_physics_12126101_raw_30
                 hRingvsRegMult[i][j]->Fill(event->refMult(),ringsum[i][j]);
             }
         }
+
+        // Saving events to file to generate weights
+        for (uint32_t i = 0; i < 16; i++) {
+            (*sums)[i][numEvents] = ringsum[0][i];
+        }
+        (*reference)[numEvents] = event->refMult();
+        numEvents++;
+        if (numEvents >= sums->GetNcols()) {
+            sums->ResizeTo(sums->GetNrows(), sums->GetNcols() * 2);
+            reference->ResizeTo(reference->GetNrows() * 2);
+        }
         
         
     } //for(Long64_t iEvent=0; iEvent<events2read; iEvent++)
@@ -192,6 +210,21 @@ void PicoDstAnalyzer(const Char_t *inFile = "../files/st_physics_12126101_raw_30
     
     
     picoReader->Finish();
+
+    // Trim off empty space
+    sums->ResizeTo(sums->GetNrows(), numEvents);
+    reference->ResizeTo(numEvents);
+
+    std::cout << "SUMS:\n";
+    sums->Print();
+
+    TFile outFile("ringSums.root", "RECREATE");
+    sums->Write("ring_sums");
+    reference->Write("tpc_multiplicity");
+    outFile.Close();
+
+    delete sums;
+    delete reference;
     
     std::cout << "Analysis complete" << std::endl;
     

@@ -8,7 +8,7 @@
  * 
  */
 
-#define DEBUG
+// #define DEBUG
 
 #include <iostream>
 
@@ -16,6 +16,7 @@
 #include "TROOT.h"
 #include "TMatrixD.h"
 #include "TVectorD.h"
+#include "TFile.h"
 
 const uint32_t dim = 17;
 
@@ -28,10 +29,9 @@ const uint32_t dim = 17;
 
 
 // Takes the matrix C and the vector G and generates the weight vector W
-void generateWeights (const TMatrixD *c, const TVectorD *g) {
+TVectorD* generateWeights (const TMatrixD *c, const TVectorD *g) {
     TMatrixD *a = new TMatrixD(dim, dim);    // Creates a double precision matrix
     TVectorD *b = new TVectorD(dim);
-    TVectorD *weights = new TVectorD(dim);
     int32_t numEvents = c->GetNcols();
 
     std::cerr << "Processings " << numEvents << " events.\n";
@@ -50,6 +50,7 @@ void generateWeights (const TMatrixD *c, const TVectorD *g) {
     for (uint32_t t = 0; t < dim - 1; t++) {
         for (uint32_t j = 0; j < numEvents; j++) {
             (*a)[dim - 1][t] += (*c)[t][j];
+            (*a)[t][dim - 1] += (*c)[t][j];
         }
     }
 
@@ -78,25 +79,42 @@ void generateWeights (const TMatrixD *c, const TVectorD *g) {
     b->Print();
     #endif // DEBUG
 
+    // Inverting A to solve Ax=B for x
+    a->Invert();
+    (*b) *= (*a);
+
+    #ifdef DEBUG
+    std::cout << "A Inverted:\n";
+    a->Print();
+    #endif // DEBUG
+
+    
+    return b;
+}
+
+void predictTPCMultiplicity(TVectorD *weights, TMatrixD *epdData) {
+    uint32_t numEvents = epdData->GetNcols();
+    TVectorD *predictedTCPMultiplicity = new TVectorD(numEvents);
+    for (uint32_t i = 0; i < numEvents; i++) {
+        (*predictedTCPMultiplicity)[i] = (*weights)[16];
+        for (uint32_t j = 0; j < 16; j++) {
+            (*predictedTCPMultiplicity) += (*epdData)[j][i] * (*weights)[j];
+        }
+    }
+    predictedTCPMultiplicity->Print();
 }
 
 
 void linearWeights() {
     std::cout << "Running?" <<std::endl;
     
-    uint32_t events = 50;
-
-    TMatrixD *c = new TMatrixD(dim - 1, events);
-    for (uint32_t i = 0; i < dim - 1; i++) {
-        for (uint32_t j = 0; j < events; j++) {
-            (*c)[i][j] = 6 * i + 2 + j; // TODO Make random value
-        }
-    }
-
-    TVectorD *g = new TVectorD(events);
-    for (uint32_t i =0; i < events; i++) {
-        (*g)[i] = 3 * i;
-    }
-
-    generateWeights(c, g);
+    TFile inFile("ringSums.root");
+    TMatrixD *c;
+    TVectorD *g;
+    inFile.GetObject("ring_sums", c);
+    inFile.GetObject("tpc_multiplicity", g);
+    // c->Print();
+    TVectorD *weights = generateWeights(c, g);
+    predictTPCMultiplicity(weights, c);
+    g->Print();
 }
