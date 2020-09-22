@@ -8,15 +8,18 @@
  * 
  */
 
-// #define DEBUG
+#define DEBUG
 
 #include <iostream>
 
 // Root headers
-#include "TROOT.h"
-#include "TMatrixD.h"
-#include "TVectorD.h"
+#include "TCanvas.h"
 #include "TFile.h"
+#include "TH2D.h"
+#include "TMatrixD.h"
+#include "TROOT.h"
+#include "TStyle.h"
+#include "TVectorD.h"
 
 const uint32_t dim = 17;
 
@@ -29,9 +32,9 @@ const uint32_t dim = 17;
 
 
 // Takes the matrix C and the vector G and generates the weight vector W
-TVectorD* generateWeights (const TMatrixD *c, const TVectorD *g) {
+TMatrixD* generateWeights (const TMatrixD *c, const TVectorD *g) {
     TMatrixD *a = new TMatrixD(dim, dim);    // Creates a double precision matrix
-    TVectorD *b = new TVectorD(dim);
+    TMatrixD *b = new TMatrixD(dim, 1);
     int32_t numEvents = c->GetNcols();
 
     std::cerr << "Processings " << numEvents << " events.\n";
@@ -60,16 +63,16 @@ TVectorD* generateWeights (const TMatrixD *c, const TVectorD *g) {
     // Step 4
     for (uint32_t t = 0; t < dim - 1; t++) {
         for (uint32_t j = 0; j < numEvents; j++) {
-            (*b)[t] += (*g)[j] * (*c)[t][j];
+            (*b)[t][0] += (*g)[j] * (*c)[t][j];
         }
     }
 
     // Step 5
     for (uint32_t j = 0; j < numEvents; j++) {
-        (*b)[dim - 1] += (*g)[j];
+        (*b)[dim - 1][0] += (*g)[j];
     }
 
-    std::cerr << "A and B generated\n";
+    // std::cerr << "A and B generated\n";
     
     // Debug printing
     #ifdef DEBUG
@@ -81,7 +84,9 @@ TVectorD* generateWeights (const TMatrixD *c, const TVectorD *g) {
 
     // Inverting A to solve Ax=B for x
     a->Invert();
-    (*b) *= (*a);
+    TMatrixD *weights = new TMatrixD(17, 1);
+    weights->Mult(*a, *b);
+    
 
     #ifdef DEBUG
     std::cout << "A Inverted:\n";
@@ -89,32 +94,56 @@ TVectorD* generateWeights (const TMatrixD *c, const TVectorD *g) {
     #endif // DEBUG
 
     
-    return b;
+    return weights;
 }
 
-void predictTPCMultiplicity(TVectorD *weights, TMatrixD *epdData) {
+TVectorD* predictTPCMultiplicity(TMatrixD *weights, TMatrixD *epdData) {
     uint32_t numEvents = epdData->GetNcols();
     TVectorD *predictedTCPMultiplicity = new TVectorD(numEvents);
     for (uint32_t i = 0; i < numEvents; i++) {
-        (*predictedTCPMultiplicity)[i] = (*weights)[16];
+        (*predictedTCPMultiplicity)[i] = (*weights)[16][0];
         for (uint32_t j = 0; j < 16; j++) {
-            (*predictedTCPMultiplicity) += (*epdData)[j][i] * (*weights)[j];
+            (*predictedTCPMultiplicity) += (*epdData)[j][i] * (*weights)[j][0];
         }
     }
-    predictedTCPMultiplicity->Print();
+    // predictedTCPMultiplicity->Print();
+    return predictedTCPMultiplicity;
 }
 
 
 void linearWeights() {
-    std::cout << "Running?" <<std::endl;
+    std::cout << "Running..." <<std::endl;
     
     TFile inFile("ringSums.root");
     TMatrixD *c;
     TVectorD *g;
     inFile.GetObject("ring_sums", c);
     inFile.GetObject("tpc_multiplicity", g);
-    // c->Print();
-    TVectorD *weights = generateWeights(c, g);
-    predictTPCMultiplicity(weights, c);
-    g->Print();
+    TMatrixD *weights = generateWeights(c, g);
+    std::cout << "Weights:\n";
+    weights->Print();
+    TVectorD *predictions = predictTPCMultiplicity(weights, c);
+    inFile.Close();
+
+    gStyle->SetPalette(kBird);
+    gStyle->SetOptStat(0);
+    gStyle->SetOptTitle(0);
+
+    uint32_t bins = 100;
+    int32_t predictMin = 0;
+    int32_t predictMax = 35000;
+    int32_t realMin = 0;
+    int32_t realMax = 200; 
+
+    TH2D *predictVsReal = new TH2D("predictVsReal", "2D Histo;Real;Predicted",
+                                  bins, realMin, realMax,
+                                  bins, predictMin, predictMax);
+
+
+    for (uint32_t i = 0; i < g->GetNrows(); i++) {
+        predictVsReal->Fill((*g)[i], (*predictions)[i]);
+    }
+
+    TCanvas *canvas = new TCanvas("Canvas", "Canvas", 800, 800);
+    predictVsReal->Draw("Colz");
 }
