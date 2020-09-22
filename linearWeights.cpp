@@ -8,7 +8,7 @@
  * 
  */
 
-#define DEBUG
+// #define DEBUG
 
 #include <iostream>
 
@@ -43,6 +43,7 @@ TMatrixD* generateWeights (const TMatrixD *c, const TVectorD *g) {
     // Step 1
     for (uint32_t q = 0; q < dim - 1; q++) {
         for (uint32_t t = 0; t < dim - 1; t++) {
+            (*a)[q][t] = 0; // likely not needed
             for (uint32_t j = 0; j < numEvents; j++) {
                 (*a)[q][t] += (*c)[q][j] * (*c)[t][j];
             }
@@ -62,6 +63,7 @@ TMatrixD* generateWeights (const TMatrixD *c, const TVectorD *g) {
 
     // Step 4
     for (uint32_t t = 0; t < dim - 1; t++) {
+        (*b)[t][0] = 0;
         for (uint32_t j = 0; j < numEvents; j++) {
             (*b)[t][0] += (*g)[j] * (*c)[t][j];
         }
@@ -71,8 +73,6 @@ TMatrixD* generateWeights (const TMatrixD *c, const TVectorD *g) {
     for (uint32_t j = 0; j < numEvents; j++) {
         (*b)[dim - 1][0] += (*g)[j];
     }
-
-    // std::cerr << "A and B generated\n";
     
     // Debug printing
     #ifdef DEBUG
@@ -81,6 +81,16 @@ TMatrixD* generateWeights (const TMatrixD *c, const TVectorD *g) {
     std::cout << "\n\nB:\n";
     b->Print();
     #endif // DEBUG
+
+    // std::cout << "\n\n\nA:\n";
+    // for (uint32_t i = 0; i < 17; i++) {
+    //     for (uint32_t j = 0; j < 17; j++) {
+    //         std::cout << (*a)[i][j] << ", ";
+    //     }
+    //     std::cout << std::endl;
+    //     std::cout << (*b)[i][0] << ", ";
+    // }
+    // std::cout << "\n\n\n";
 
     // Inverting A to solve Ax=B for x
     a->Invert();
@@ -97,13 +107,15 @@ TMatrixD* generateWeights (const TMatrixD *c, const TVectorD *g) {
     return weights;
 }
 
+// Uses the generated weights and the truncated nMIPs data to predict TPC multiplicity
+// X_t = sum_r W_r * C_{r, t} + W_17
 TVectorD* predictTPCMultiplicity(TMatrixD *weights, TMatrixD *epdData) {
     uint32_t numEvents = epdData->GetNcols();
-    TVectorD *predictedTCPMultiplicity = new TVectorD(numEvents);
+    TVectorD *predictedTCPMultiplicity = new TVectorD(numEvents);   // Store our guesses
     for (uint32_t i = 0; i < numEvents; i++) {
-        (*predictedTCPMultiplicity)[i] = (*weights)[16][0];
+        (*predictedTCPMultiplicity)[i] = (*weights)[16][0]; // Add the bias
         for (uint32_t j = 0; j < 16; j++) {
-            (*predictedTCPMultiplicity) += (*epdData)[j][i] * (*weights)[j][0];
+            (*predictedTCPMultiplicity)[i] += (*epdData)[j][i] * (*weights)[j][0]; // Add the weighted input
         }
     }
     // predictedTCPMultiplicity->Print();
@@ -117,7 +129,7 @@ void linearWeights() {
     TFile inFile("ringSums.root");
     TMatrixD *c;
     TVectorD *g;
-    inFile.GetObject("ring_sums", c);
+    inFile.GetObject("ring_sums", c);           // should probably check for existance but...
     inFile.GetObject("tpc_multiplicity", g);
     TMatrixD *weights = generateWeights(c, g);
     std::cout << "Weights:\n";
@@ -125,15 +137,16 @@ void linearWeights() {
     TVectorD *predictions = predictTPCMultiplicity(weights, c);
     inFile.Close();
 
-    gStyle->SetPalette(kBird);
-    gStyle->SetOptStat(0);
-    gStyle->SetOptTitle(0);
+    // Everything from here down is plotting
 
-    uint32_t bins = 100;
+    gStyle->SetPalette(kBird);
+    gStyle->SetOptStat(11);
+
+    uint32_t bins = 50;
     int32_t predictMin = 0;
-    int32_t predictMax = 35000;
+    int32_t predictMax = 300;
     int32_t realMin = 0;
-    int32_t realMax = 200; 
+    int32_t realMax = 300; 
 
     TH2D *predictVsReal = new TH2D("predictVsReal", "2D Histo;Real;Predicted",
                                   bins, realMin, realMax,
@@ -144,6 +157,7 @@ void linearWeights() {
         predictVsReal->Fill((*g)[i], (*predictions)[i]);
     }
 
-    TCanvas *canvas = new TCanvas("Canvas", "Canvas", 800, 800);
+    predictVsReal->SetTitle("Predicted Multiplicity vs TPC Multiplicity");
     predictVsReal->Draw("Colz");
+    std::cout << "Plotted " << g->GetNrows() << " events\n";
 }
