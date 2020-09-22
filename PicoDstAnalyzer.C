@@ -193,7 +193,7 @@ void PicoDstAnalyzer(const Char_t *inFile = "st_physics_21248001_raw_3000001.pic
 
         // Saving events to file to generate weights
         for (uint32_t i = 0; i < 16; i++) {
-            (*sums)[i][numEvents] = ringsum[0][i];
+            (*sums)[i][numEvents] = ringsum[0][i] + ringsum[1][i];
         }
         (*reference)[numEvents] = event->refMult();
         numEvents++;
