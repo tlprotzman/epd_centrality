@@ -180,7 +180,7 @@ void PicoDstAnalyzer(const Char_t *inFile = "st_physics_21248001_raw_3000001.pic
             else if (epdhit->nMIP() > 2)
                 nMip = 2;
             else nMip = epdhit->nMIP();
-            ringsum[ew][(int)epdhit->tile()/2]+=epdhit->nMIP();
+            ringsum[ew][(int)epdhit->tile()/2]+=nMip;
             mNmipDists[ew][epdhit->position()-1][epdhit->tile()-1]->Fill(nMip);
             mAdcDists[ew][epdhit->position()-1][epdhit->tile()-1]->Fill(epdhit->adc());
         }  // for (UInt_t iepd = 0;iepd<Nepd;iepd++){
