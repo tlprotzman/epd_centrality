@@ -143,9 +143,9 @@ void linearWeights() {
     gStyle->SetOptStat(11);
 
     uint32_t bins = 50;
-    int32_t predictMin = 0;
+    int32_t predictMin = -100;
     int32_t predictMax = 300;
-    int32_t realMin = 0;
+    int32_t realMin = -25;
     int32_t realMax = 300; 
 
     TH2D *predictVsReal = new TH2D("predictVsReal", "2D Histo;Real;Predicted",
@@ -157,7 +157,7 @@ void linearWeights() {
         predictVsReal->Fill((*g)[i], (*predictions)[i]);
     }
 
-    predictVsReal->SetTitle("Predicted Multiplicity vs TPC Multiplicity");
+    predictVsReal->SetTitle("Predicted Multiplicity vs TPC Multiplicity, 7.7 GeV");
     predictVsReal->Draw("Colz");
     std::cout << "Plotted " << g->GetNrows() << " events\n";
 }
