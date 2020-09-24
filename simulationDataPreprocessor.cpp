@@ -9,6 +9,7 @@
  */
 
 #include <iostream>
+#include <vector>
 
 
 
@@ -36,21 +37,27 @@ void simulationDataPreprocessor(const char *inFileName = "CentralityNtupleout062
     TMatrixD *ringSums = new TMatrixD(RINGS, numEvents);
     TVectorD *tpcMultiplicity = new TVectorD(numEvents);
 
-    TTreeReaderValue<Float_t> *rings[RINGS];
-    for (uint8_t i = 1; i <= RINGS; i++) {
-        rings[i] = new TTreeReaderValue<Float_t>(eventReader, Form("r%02d", i));
-        // std::cout << Form("r%02d", i) << std::endl;;
+    std::vector<TTreeReaderValue<Float_t>> ringReaders;
+    for (uint32_t i = 1; i <= RINGS; i++) {
+        TTreeReaderValue<Float_t> reader(eventReader, Form("r%02d", i));
+        ringReaders.push_back(reader);
     }
     TTreeReaderValue<Float_t> refMul(eventReader, "RefMult1");
 
     Long64_t i = 0;
     while(eventReader.Next()) {
-        for (uint8_t j = 0; j < RINGS; j++) {
-            (*ringSums)[j][i] = 5;
+        for (uint32_t j = 0; j < RINGS; j++) {
+            (*ringSums)[j][i] = *(ringReaders[j]);
         }
         (*tpcMultiplicity)[i] = *refMul;
         i++;
     }
     // ringSums->Print();
-    tpcMultiplicity->Print();
+    // tpcMultiplicity->Print();
+
+    TFile outFile("simRingSums.root", "RECREATE");
+    ringSums->Write("ring_sums");
+    tpcMultiplicity->Write("tpc_multiplicity");
+    outFile.Close();
+
 }
