@@ -53,7 +53,7 @@ R__LOAD_LIBRARY(StRoot/StPicoEvent/libStPicoDst)
 //          name1.picoDst.root files
 
 //_________________
-void PicoDstAnalyzer(const Char_t *inFile = "st_physics_21248001_raw_3000001.picoDst.root") {
+void PicoDstAnalyzer(const Char_t *inFile = "files.list") {
     
     std::cout << "Hi! Lets do some physics, Master!" << std::endl;
     
@@ -215,8 +215,8 @@ void PicoDstAnalyzer(const Char_t *inFile = "st_physics_21248001_raw_3000001.pic
     sums->ResizeTo(sums->GetNrows(), numEvents);
     reference->ResizeTo(numEvents);
 
-    std::cout << "SUMS:\n";
-    sums->Print();
+    // std::cout << "SUMS:\n";
+    // sums->Print();
 
     TFile outFile("ringSums.root", "RECREATE");
     sums->Write("ring_sums");

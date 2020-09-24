@@ -18,6 +18,7 @@
 #include "TH2D.h"
 #include "TMatrixD.h"
 #include "TROOT.h"
+#include "TPad.h"
 #include "TStyle.h"
 #include "TVectorD.h"
 
@@ -41,6 +42,7 @@ TMatrixD* generateWeights (const TMatrixD *c, const TVectorD *g) {
 
     // Generating A
     // Step 1
+    std::cout << "Generating A..." << std::endl;
     for (uint32_t q = 0; q < dim - 1; q++) {
         for (uint32_t t = 0; t < dim - 1; t++) {
             (*a)[q][t] = 0; // likely not needed
@@ -61,6 +63,8 @@ TMatrixD* generateWeights (const TMatrixD *c, const TVectorD *g) {
     // Step 3
     (*a)[dim -1][dim -1] = numEvents;
 
+    std::cout << "Generated A" << std::endl;
+
     // Step 4
     for (uint32_t t = 0; t < dim - 1; t++) {
         (*b)[t][0] = 0;
@@ -73,6 +77,8 @@ TMatrixD* generateWeights (const TMatrixD *c, const TVectorD *g) {
     for (uint32_t j = 0; j < numEvents; j++) {
         (*b)[dim - 1][0] += (*g)[j];
     }
+
+    std::cout << "Generated B" << std::endl;
     
     // Debug printing
     #ifdef DEBUG
@@ -93,6 +99,7 @@ TMatrixD* generateWeights (const TMatrixD *c, const TVectorD *g) {
     // std::cout << "\n\n\n";
 
     // Inverting A to solve Ax=B for x
+    std::cout << "Inverting A" << std::endl;
     a->Invert();
     TMatrixD *weights = new TMatrixD(17, 1);
     weights->Mult(*a, *b);
@@ -113,6 +120,9 @@ TVectorD* predictTPCMultiplicity(TMatrixD *weights, TMatrixD *epdData) {
     uint32_t numEvents = epdData->GetNcols();
     TVectorD *predictedTCPMultiplicity = new TVectorD(numEvents);   // Store our guesses
     for (uint32_t i = 0; i < numEvents; i++) {
+        if (i%100 == 0) {
+            std::cout << "Working on event " << i << "/" << numEvents << std::endl;
+        }
         (*predictedTCPMultiplicity)[i] = (*weights)[16][0]; // Add the bias
         for (uint32_t j = 0; j < 16; j++) {
             (*predictedTCPMultiplicity)[i] += (*epdData)[j][i] * (*weights)[j][0]; // Add the weighted input
@@ -123,17 +133,22 @@ TVectorD* predictTPCMultiplicity(TMatrixD *weights, TMatrixD *epdData) {
 }
 
 
-void linearWeights() {
+void linearWeights(const char *inFileName = "ringSums.root") {
     std::cout << "Running..." <<std::endl;
     
-    TFile inFile("ringSums.root");
+    TFile inFile(inFileName);
     TMatrixD *c;
     TVectorD *g;
     inFile.GetObject("ring_sums", c);           // should probably check for existance but...
     inFile.GetObject("tpc_multiplicity", g);
+
+    std::cout << "Generating Weights.." << std::endl;
     TMatrixD *weights = generateWeights(c, g);
+    std::cout << "Weights Generated" << std::endl;
     std::cout << "Weights:\n";
     weights->Print();
+
+    std::cout << "Applying linear weights..." << std::endl;
     TVectorD *predictions = predictTPCMultiplicity(weights, c);
     inFile.Close();
 
@@ -141,8 +156,10 @@ void linearWeights() {
 
     gStyle->SetPalette(kBird);
     gStyle->SetOptStat(11);
+    gStyle->SetStatX(0.38);
+    gStyle->SetStatY(0.85);
 
-    uint32_t bins = 50;
+    uint32_t bins = 150;
     int32_t predictMin = -100;
     int32_t predictMax = 300;
     int32_t realMin = -25;
@@ -157,7 +174,11 @@ void linearWeights() {
         predictVsReal->Fill((*g)[i], (*predictions)[i]);
     }
 
-    predictVsReal->SetTitle("Predicted Multiplicity vs TPC Multiplicity, 7.7 GeV");
+
+    TCanvas *canvas = new TCanvas("canvas", "canvas", 700, 500);
+    gPad->SetLogz();
+
+    predictVsReal->SetTitle("Predicted Multiplicity vs TPC Multiplicity, 7.7 GeV, Simulated Data");
     predictVsReal->Draw("Colz");
     std::cout << "Plotted " << g->GetNrows() << " events\n";
 }
