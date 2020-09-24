@@ -53,7 +53,7 @@ R__LOAD_LIBRARY(StRoot/StPicoEvent/libStPicoDst)
 //          name1.picoDst.root files
 
 //_________________
-void PicoDstAnalyzer(const Char_t *inFile = "files.list") {
+void PicoDstAnalyzer(const Char_t *inFile = "data/files.list") {
     
     std::cout << "Hi! Lets do some physics, Master!" << std::endl;
     
@@ -78,7 +78,7 @@ void PicoDstAnalyzer(const Char_t *inFile = "files.list") {
     std::cout << "Number of events to read: " << events2read
     << std::endl;
     
-    TString OutFileName = "out.root";
+    TString OutFileName = "data/out.root";
     TFile *file1 = TFile::Open(OutFileName.Data(),"RECREATE");
     
     // Histogramming
@@ -116,7 +116,8 @@ void PicoDstAnalyzer(const Char_t *inFile = "files.list") {
     }
 
     TMatrixD *sums = new TMatrixD(16, 4);
-    TVectorD *reference = new TVectorD(4);
+    TVectorD *tpcMultiplicity = new TVectorD(4);
+    TVectorD *tofMultiplicity = new TVectorD(4);
     uint32_t numEvents = 0;
     
     
@@ -143,10 +144,10 @@ void PicoDstAnalyzer(const Char_t *inFile = "files.list") {
         }
         
         //Select good events
-        if ( abs(event->primaryVertex().Z()) > 70)  // what is 70?
+        if ( abs(event->primaryVertex().Z()) > 70)  // what is 70? collision happened within 70 cm on z axis
             continue;
-        float Vr = sqrt(event->primaryVertex().X()*event->primaryVertex().X()+event->primaryVertex().Y()*event->primaryVertex().X());
-        if (Vr > 2)
+        float Vr = sqrt(event->primaryVertex().X()*event->primaryVertex().X()+event->primaryVertex().Y()*event->primaryVertex().X());   // xy distance of collision
+        if (Vr > 2) // within 2 cm of beamline
             continue;
         
         //Fill eventwise distributions
@@ -195,11 +196,13 @@ void PicoDstAnalyzer(const Char_t *inFile = "files.list") {
         for (uint32_t i = 0; i < 16; i++) {
             (*sums)[i][numEvents] = ringsum[0][i] + ringsum[1][i];
         }
-        (*reference)[numEvents] = event->refMult();
+        (*tpcMultiplicity)[numEvents] = event->refMult();
+        (*tofMultiplicity)[numEvents] = event->btofTrayMultiplicity();
         numEvents++;
         if (numEvents >= sums->GetNcols()) {
             sums->ResizeTo(sums->GetNrows(), sums->GetNcols() * 2);
-            reference->ResizeTo(reference->GetNrows() * 2);
+            tpcMultiplicity->ResizeTo(tpcMultiplicity->GetNrows() * 2);
+            tofMultiplicity->ResizeTo(tofMultiplicity->GetNrows() * 2);
         }
         
         
@@ -213,18 +216,22 @@ void PicoDstAnalyzer(const Char_t *inFile = "files.list") {
 
     // Trim off empty space
     sums->ResizeTo(sums->GetNrows(), numEvents);
-    reference->ResizeTo(numEvents);
+    tpcMultiplicity->ResizeTo(numEvents);
+    tofMultiplicity->ResizeTo(numEvents);
 
     // std::cout << "SUMS:\n";
     // sums->Print();
 
-    TFile outFile("ringSums.root", "RECREATE");
+    TFile outFile("data/ringSums.root", "RECREATE");
     sums->Write("ring_sums");
-    reference->Write("tpc_multiplicity");
+    tpcMultiplicity->Write("tpc_multiplicity");
+    tofMultiplicity->Print();
+    tofMultiplicity->Write("tof_multiplicity");
     outFile.Close();
 
     delete sums;
-    delete reference;
+    delete tpcMultiplicity;
+    delete tofMultiplicity;
     
     std::cout << "Analysis complete" << std::endl;
     
