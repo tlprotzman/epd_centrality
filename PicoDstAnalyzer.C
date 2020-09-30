@@ -149,6 +149,15 @@ void PicoDstAnalyzer(const Char_t *inFile = "data/files.list") {
         float Vr = sqrt(event->primaryVertex().X()*event->primaryVertex().X()+event->primaryVertex().Y()*event->primaryVertex().X());   // xy distance of collision
         if (Vr > 2) // within 2 cm of beamline
             continue;
+
+        // Selection on tof vs tpc multiplicity
+        float tolerance = 0.8;
+        UShort_t tofMult = event->btofTrayMultiplicity();
+        Int_t tpcMult = event->refMult();
+        if (!(tofMult * (1 - tolerance) < 2 * tpcMult && tofMult * (1 + tolerance) > 2 * tpcMult)) {
+            continue;
+        }
+
         
         //Fill eventwise distributions
         hRefMult->Fill( event->refMult() );

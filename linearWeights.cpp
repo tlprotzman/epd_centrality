@@ -165,7 +165,7 @@ void linearWeights(const char *inFileName = "data/ringSums.root") {
     int32_t realMin = -26;
     int32_t realMax = 300; 
 
-    TH2D *predictVsReal = new TH2D("predictVsReal", "2D Histo;UrQMD RefMult;Linear Weighed Prediction",
+    TH2D *predictVsReal = new TH2D("predictVsReal", "2D Histo;TPC RefMult;Linear Weighed Prediction",
                                   bins, realMin, realMax,
                                   bins, predictMin, predictMax);
 
@@ -178,7 +178,7 @@ void linearWeights(const char *inFileName = "data/ringSums.root") {
     TCanvas *canvas = new TCanvas("canvas", "canvas", 700, 500);
     gPad->SetLogz();
 
-    predictVsReal->SetTitle("Predicted Multiplicity vs TPC Multiplicity, 7.7 GeV, Simulated Data");
+    predictVsReal->SetTitle("Predicted Multiplicity vs TPC Multiplicity, 7.7 GeV, Detector Data, TOF Selector");
     predictVsReal->Draw("Colz");
     std::cout << "Plotted " << g->GetNrows() << " events\n";
 }

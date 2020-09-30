@@ -35,30 +35,32 @@ void tpcVsTofSelection(const char *inFileName = "data/ringSums.root") {
     gStyle->SetStatX(0.38);
     gStyle->SetStatY(0.85);
 
-    uint32_t bins = 150;
-    int32_t tofMin = 0;
-    int32_t tofMax = 300;
+    uint32_t tpcBins = 150;
     int32_t tpcMin = 0;
-    int32_t tpcMax = 700; 
+    int32_t tpcMax = 300;
 
-    TH2D *tofVsTpc = new TH2D("TPC vs TOF", "2D Histo;tof;tpc",
-                                  bins, tpcMin, tpcMax,
-                                  bins, tofMin, tofMax);
+    uint32_t tofBins = 150;
+    int32_t tofMin = 0;
+    int32_t tofMax = 750; 
+
+    TH2D *tofVsTpc = new TH2D("TPC vs TOF", "2D Histo;b TOF Tray Multiplicity;TPC RefMult",
+                                  tofBins, tofMin, tofMax,
+                                  tpcBins, tpcMin, tpcMax);
 
     int selectionWindow = 50;
-    TH2D *windowTofVsTpc = new TH2D("TPC vs TOF", "2D Histo;tof;tpc",
-                                        bins, tpcMin, tpcMax,
-                                        bins, tofMin, tofMax);
+    TH2D *windowTofVsTpc = new TH2D("Windowed", "2D Histo;b TOF Tray Multiplicity;TPC RefMult",
+                                        tofBins, tofMin, tofMax,
+                                        tpcBins, tpcMin, tpcMax);
 
     float tolerance1 = 0.8;
-    TH2D *toleranceTofVsTpc = new TH2D("TPC vs TOF", "2D Histo;tof;tpc",
-                                        bins, tpcMin, tpcMax,
-                                        bins, tofMin, tofMax);
+    TH2D *toleranceTofVsTpc = new TH2D("tolerance", "2D Histo;b TOF Tray Multiplicity;TPC RefMult",
+                                        tofBins, tofMin, tofMax,
+                                        tpcBins, tpcMin, tpcMax);
 
     float percentDifference = 0.8;
-    TH2D *tolerance2TofVsTpc = new TH2D("TPC vs TOF", "2D Histo;tof;tpc",
-                                    bins, tpcMin, tpcMax,
-                                    bins, tofMin, tofMax);
+    TH2D *tolerance2TofVsTpc = new TH2D("percent difference", "2D Histo;b TOF Tray Multiplicity;TPC RefMult",
+                                    tofBins, tofMin, tofMax,
+                                    tpcBins, tpcMin, tpcMax);
 
 
 
@@ -76,7 +78,7 @@ void tpcVsTofSelection(const char *inFileName = "data/ringSums.root") {
             toleranceTofVsTpc->Fill(tofVal, tpcVal);
         }
         // Percent Difference
-        if (((2 * tpcVal) - tofVal) / (((2 * tpcVal) + tofVal) / 2) < percentDifference) {
+        if (abs(((2 * tpcVal) - tofVal) / (((2 * tpcVal) + tofVal) / 2)) < percentDifference) {
             tolerance2TofVsTpc->Fill(tofVal, tpcVal);
         }
     }
