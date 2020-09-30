@@ -133,7 +133,7 @@ TVectorD* predictTPCMultiplicity(TMatrixD *weights, TMatrixD *epdData) {
 }
 
 
-void linearWeights(const char *inFileName = "ringSums.root") {
+void linearWeights(const char *inFileName = "data/ringSums.root") {
     std::cout << "Running..." <<std::endl;
     
     TFile inFile(inFileName);
@@ -159,13 +159,13 @@ void linearWeights(const char *inFileName = "ringSums.root") {
     gStyle->SetStatX(0.38);
     gStyle->SetStatY(0.85);
 
-    uint32_t bins = 150;
+    uint32_t bins = 162;
     int32_t predictMin = -100;
     int32_t predictMax = 300;
-    int32_t realMin = -25;
+    int32_t realMin = -26;
     int32_t realMax = 300; 
 
-    TH2D *predictVsReal = new TH2D("predictVsReal", "2D Histo;Real;Predicted",
+    TH2D *predictVsReal = new TH2D("predictVsReal", "2D Histo;UrQMD RefMult;Linear Weighed Prediction",
                                   bins, realMin, realMax,
                                   bins, predictMin, predictMax);
 
