@@ -15,12 +15,17 @@
 // Root headers
 #include "TCanvas.h"
 #include "TFile.h"
+#include "TH1D.h"
 #include "TH2D.h"
 #include "TMatrixD.h"
 #include "TROOT.h"
+#include "TGraph.h"
+#include "TGraphQQ.h"
 #include "TPad.h"
 #include "TStyle.h"
 #include "TVectorD.h"
+
+#include "quantiles.h"
 
 const uint32_t dim = 17;
 
@@ -132,7 +137,6 @@ TVectorD* predictTPCMultiplicity(TMatrixD *weights, TMatrixD *epdData) {
     return predictedTCPMultiplicity;
 }
 
-
 void linearWeights(const char *inFileName = "data/ringSums.root") {
     std::cout << "Running..." <<std::endl;
     
@@ -181,4 +185,9 @@ void linearWeights(const char *inFileName = "data/ringSums.root") {
     predictVsReal->SetTitle("Predicted Multiplicity vs TPC Multiplicity, 7.7 GeV, Detector Data, TOF Selector");
     predictVsReal->Draw("Colz");
     std::cout << "Plotted " << g->GetNrows() << " events\n";
+
+    TFile outFile("data/hist_data.root", "RECREATE");
+    predictVsReal->Write("predictVsReal");
+    outFile.Close();
+    quantileAnalysis(predictVsReal);
 }
