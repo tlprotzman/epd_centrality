@@ -25,7 +25,6 @@
 #include "TStyle.h"
 #include "TVectorD.h"
 
-#include "quantiles.h"
 
 const uint32_t dim = 17;
 
@@ -163,15 +162,17 @@ void linearWeights(const char *inFileName = "data/ringSums.root") {
     gStyle->SetStatX(0.38);
     gStyle->SetStatY(0.85);
 
-    uint32_t bins = 162;
+    uint32_t predictBins = 200;
     int32_t predictMin = -100;
     int32_t predictMax = 300;
+    
+    uint32_t realBins = 327;
     int32_t realMin = -26;
     int32_t realMax = 300; 
 
     TH2D *predictVsReal = new TH2D("predictVsReal", "2D Histo;TPC RefMult;Linear Weighed Prediction",
-                                  bins, realMin, realMax,
-                                  bins, predictMin, predictMax);
+                                  realBins, realMin, realMax,
+                                  predictBins, predictMin, predictMax);
 
 
     for (uint32_t i = 0; i < g->GetNrows(); i++) {
@@ -187,7 +188,6 @@ void linearWeights(const char *inFileName = "data/ringSums.root") {
     std::cout << "Plotted " << g->GetNrows() << " events\n";
 
     TFile outFile("data/hist_data.root", "RECREATE");
-    predictVsReal->Write("predictVsReal");
+    predictVsReal->Write("histogram");
     outFile.Close();
-    quantileAnalysis(predictVsReal);
 }
