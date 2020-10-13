@@ -26,6 +26,7 @@
 
 const int32_t numberQuantiles = 100;
 
+// getQuantileRange creates a histogram of the data in the specified quantile range
 TH2D *getQuantileRange(int lowerQuantile, int upperQuantile, TH2D *histogram, double *quantiles) {
     TH2D *quantileHistogram = new TH2D(Form("quantiles%d_%d", lowerQuantile, upperQuantile), Form("%d%% - %d%% Multiplicity", lowerQuantile, upperQuantile),
             histogram->GetNbinsX(), histogram->GetXaxis()->GetXmin(), histogram->GetXaxis()->GetXmax(),
@@ -35,10 +36,10 @@ TH2D *getQuantileRange(int lowerQuantile, int upperQuantile, TH2D *histogram, do
     quantileHistogram->SetXTitle("Multiplicity");
     quantileHistogram->SetYTitle("Counts");
 
-    int32_t min, max;
-    lowerQuantile -= 1;
-    if (lowerQuantile < 0) {
-        min = histogram->GetXaxis()->GetXmin();
+    double min, max;
+    lowerQuantile -= 1;      // Since the quantile array gives the upper bound of the quantile, the lower bound should be the one below
+    if (lowerQuantile < 0) { // the requested quantile
+        min = histogram->GetXaxis()->GetXmin(); // If we want from 0, set lower bound to be the minimum
     }
     else {
         min = quantiles[lowerQuantile];
@@ -47,7 +48,7 @@ TH2D *getQuantileRange(int lowerQuantile, int upperQuantile, TH2D *histogram, do
         max = histogram->GetXaxis()->GetXmax();
     }
     else{
-        max = quantiles[upperQuantile];
+        max = quantiles[upperQuantile - 1];
     }
     double *centersX = (double*)malloc(sizeof(double) * histogram->GetNbinsX());
     double *centersY = (double*)malloc(sizeof(double) * histogram->GetNbinsY());
@@ -90,7 +91,7 @@ void quantileAnalysis(TH2D *histogram) {
         std::cout << "Quantile " << i << ": " << xyQuantiles[i] << std::endl;
     }
 
-    TH2D *quantileHistogram = getQuantileRange(1, 30, histogram, xyQuantiles);
+    TH2D *quantileHistogram = getQuantileRange(50, 75, histogram, xyQuantiles);
     TH1D *quantileXProject = quantileHistogram->ProjectionX();
     TH1D *quantileYProject = quantileHistogram->ProjectionY();
 
@@ -106,13 +107,14 @@ void quantileAnalysis(TH2D *histogram) {
     canvas->cd(1);
     gPad->SetLogz();
     histogram->Draw("Colz");
-    canvas->cd(2);
-    gPad->SetGrid();
-    qq->SetTitle("Quantile-Quantile Graph");
-    qq->SetMarkerStyle(21);
-    qq->SetMarkerColor(kRed);
-    qq->SetMarkerSize(0.5);
-    qq->Draw("ap");
+
+    // canvas->cd(2);
+    // gPad->SetGrid();
+    // qq->SetTitle("Quantile-Quantile Graph");
+    // qq->SetMarkerStyle(21);
+    // qq->SetMarkerColor(kRed);
+    // qq->SetMarkerSize(0.5);
+    // qq->Draw("ap");
     
     canvas->cd(3);
     xProjection->SetTitle("TPC Projection");
@@ -143,40 +145,41 @@ void quantileAnalysis(TH2D *histogram) {
     ygraph->GetXaxis()->SetTitle("Quantile");
     ygraph->GetYaxis()->SetTitle("Linear Weight Multiplicity");
     ygraph->Draw("ap");
-    }
 
-
-
-    canvas->cd(7); // too many
+    canvas->cd(2); // too many
     gPad->SetLogz();
     quantileHistogram->Draw("Colz");
 
-    canvas->cd(8);
+    canvas->cd(7);
     quantileXProject->SetLineColor(kRed);
     quantileXProject->SetMarkerColor(kRed);
     quantileXProject->SetMarkerStyle(kOpenTriangleUp);
     quantileXProject->SetMarkerSize(0.5);
     quantileXProject->Draw("hist l p");
     
+    canvas->cd(8);
     quantileYProject->SetLineColor(kBlue);
     quantileYProject->SetMarkerColor(kBlue);
     quantileYProject->SetMarkerStyle(kStar);
     quantileYProject->SetMarkerSize(0.5);
-    quantileYProject->Draw("same hist l p");
+    quantileYProject->Draw("hist l p");
+    }
 
 
     TH2D **quantileHistograms = (TH2D**)malloc(sizeof(TH2D*) * 4);
     TH1D **quantileXProjects = (TH1D**)malloc(sizeof(TH1D*) * 4);
     TH1D **quantileYProjects = (TH1D**)malloc(sizeof(TH1D*) * 4);
 
-    quantileHistograms[0] = getQuantileRange(0, 10, histogram, xyQuantiles);
-    quantileHistograms[1] = getQuantileRange(20, 30, histogram, xyQuantiles);
-    quantileHistograms[2] = getQuantileRange(50, 60, histogram, xyQuantiles);
-    quantileHistograms[3] = getQuantileRange(80, 90, histogram, xyQuantiles);
+    quantileHistograms[0] = getQuantileRange(20, 25, histogram, xyQuantiles);
+    quantileHistograms[1] = getQuantileRange(45, 50, histogram, xyQuantiles);
+    quantileHistograms[2] = getQuantileRange(70, 75, histogram, xyQuantiles);
+    quantileHistograms[3] = getQuantileRange(95, 100, histogram, xyQuantiles);
 
     for (uint32_t i = 0; i < 4; i++) {
         quantileXProjects[i] = quantileHistograms[i]->ProjectionX();
+        std::cout << quantileXProjects[i]->ComputeIntegral() << std::endl;
         quantileYProjects[i] = quantileHistograms[i]->ProjectionY();
+        std::cout << quantileYProjects[i]->ComputeIntegral() << std::endl << std::endl;
     }
 
 
@@ -216,4 +219,11 @@ void quantiles(const char *inHistName="data/hist_data.root") {
     histogram->SetDirectory(0); // what is this black magic
     inHist.Close();
     quantileAnalysis(histogram);
+    // TH2D *testingHistogram = new TH2D("test", "test",
+    //                                     100, 0, 100*100,
+    //                                     100, 0, 100);
+    // for (double i = 0; i < 100; i+=0.01) {
+    //     testingHistogram->Fill(i*i, i);
+    // }
+    // quantileAnalysis(testingHistogram);
 }
