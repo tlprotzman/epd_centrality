@@ -166,9 +166,9 @@ void linearWeights(const char *inFileName = "data/ringSums.root") {
     int32_t predictMin = -100;
     int32_t predictMax = 300;
     
-    uint32_t realBins = 327;
-    int32_t realMin = -26;
-    int32_t realMax = 300; 
+    uint32_t realBins = 175;
+    int32_t realMin = 0;
+    int32_t realMax = 350;
 
     TH2D *predictVsReal = new TH2D("predictVsReal", "2D Histo;TPC RefMult;Linear Weighed Prediction",
                                   realBins, realMin, realMax,
