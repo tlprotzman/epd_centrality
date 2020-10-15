@@ -14,6 +14,7 @@
 #include <TFile.h>
 #include <TH1D.h>
 #include <TLegend.h>
+#include <TGraph.h>
 
 #include <iostream> 
 
@@ -107,6 +108,46 @@ void quantileComparison(TDirectory *dir, const char *name) {
 
 }
 
+// Compare the variance of 10% quantiles, as in figure 12 in the paper I am referencing
+TGraph **quantileVarianceComparison(TDirectory *dir, const char *name) {
+    TH1D *epdQuantiles[20];
+    TH1D *tpcQuantiles[20];
+
+    TList *keys = dir->GetListOfKeys();
+    uint32_t i = 0;
+    for (TIter itr = keys->begin(); itr != keys->end(); ++itr) {
+        const char *key = (*itr)->GetName();
+        dir->GetObject(key, tpcQuantiles[i]);   // Quick and dirty and bad but maybe it'll work for now?
+        ++itr;
+        key = (*itr)->GetName();
+        dir->GetObject(key, epdQuantiles[i]);
+        if (epdQuantiles[i] == nullptr || tpcQuantiles[i] == nullptr) {
+            std::cerr << "it didn't work" << std::endl;
+            return nullptr;
+        }
+        i++;
+    }
+
+    double *tpcVariance = (double*)malloc(20 * sizeof(double));
+    double *epdVariance = (double*)malloc(20 * sizeof(double));
+    double *count = (double*)malloc(20 * sizeof(double)); //memory leaks here
+    for (uint32_t i = 0; i < 20; i++) {
+        tpcVariance[i] = tpcQuantiles[i]->GetRMS();
+        if (tpcQuantiles[i]->GetRMS() < 0.0001) {
+            epdVariance[i] = 0;
+        }
+        else {
+            epdVariance[i] = epdQuantiles[i]->GetRMS() / tpcQuantiles[i]->GetRMS();
+        }
+        count[i] = i + 1;
+    }
+    TGraph **graphs = (TGraph**)malloc(2 * sizeof(TGraph*));
+    graphs[0] = new TGraph(20, count, tpcVariance);
+    graphs[1] = new TGraph(20, count, epdVariance);
+    graphs[1]->SetTitle(name);
+
+    return graphs;
+}
 
 void quantileSummary(char *infile="data/epd_tpc_relations.root") {
     TFile rootFile(infile);
@@ -114,10 +155,28 @@ void quantileSummary(char *infile="data/epd_tpc_relations.root") {
 
     TList *methods = quantile_directory->GetListOfKeys();
 
+    TGraph **varianceGraphs[5];    // WILL NOT SCALE AS IS
+
+    int i = 0;
     for (TIter method = methods->begin(); method != methods->end(); ++method) {
         const char *methodName = (*method)->GetName();
         std::cout << methodName << std::endl;
-        quantileComparison(quantile_directory->GetDirectory(methodName), methodName);
+        // quantileComparison(quantile_directory->GetDirectory(methodName), methodName);
+        varianceGraphs[i] = quantileVarianceComparison(quantile_directory->GetDirectory(methodName), methodName);
+        i++;
     }
+
+    TCanvas c2("variances", "variances", 1000, 1000);
+    for (uint32_t i = 0; i < 5; i++) {
+        if (i == 0) {
+            varianceGraphs[i][1]->Draw("AC*");
+        }
+        else {
+            varianceGraphs[i][1]->Draw("C*");
+        }
+    }
+    // varianceGraphs[0][0]->Draw();
+    c2.Draw();
+    c2.SaveAs("histograms/variances.png");
     rootFile.Close();
 }
