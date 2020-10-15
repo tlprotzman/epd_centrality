@@ -12,8 +12,11 @@
 
 #include <TROOT.h>
 #include <TFile.h>
+#include <TFolder.h>
 #include <TGraph.h>
 #include <TGraphQQ.h>
+#include <TIterator.h>
+#include <TCollection.h>
 #include <TH2D.h>
 #include <TCanvas.h>
 #include <TLegend.h>
@@ -25,6 +28,7 @@
 #include "quantiles.h"
 
 const int32_t numberQuantiles = 100;
+bool draw = false;
 
 // getQuantileRange creates a histogram of the data in the specified quantile range
 TH2D **getQuantileRange(int lowerQuantile, int upperQuantile, TH2D *histogram, double *quantileX, double* quantileY, const char *method) {
@@ -93,12 +97,12 @@ TH2D **getQuantileRange(int lowerQuantile, int upperQuantile, TH2D *histogram, d
     return quantileHistogram;
 }
 
-void quantileAnalysis(TH2D *histogram) {
+TH1D ***quantileAnalysis(TH2D *histogram, const char *keyName) {
     // Storing the quantiles
-    double xxQuantiles[numberQuantiles];
-    double yxQuantiles[numberQuantiles];
-    double xyQuantiles[numberQuantiles];
-    double yyQuantiles[numberQuantiles];
+    double xxQuantiles[numberQuantiles];    // X axis x coordinate
+    double yxQuantiles[numberQuantiles];    // y axis x coordinate
+    double xyQuantiles[numberQuantiles];    // x axis y coordinate
+    double yyQuantiles[numberQuantiles];    // y axis y coordinate
 
     TH1D *xProjection = histogram->ProjectionX();
     for (uint32_t i = 0; i < numberQuantiles; i++) {
@@ -115,145 +119,179 @@ void quantileAnalysis(TH2D *histogram) {
     //     std::cout << "Quantile " << i << ": " << xyQuantiles[i] << std::endl;
     // }
 
-    TH2D **quantileHistogram = getQuantileRange(95, 100, histogram, xyQuantiles, yyQuantiles, "");
-    TH1D *quantileXProject = quantileHistogram[0]->ProjectionX();
-    TH1D *quantileYProject = quantileHistogram[1]->ProjectionX();
 
     TGraph *xgraph = new TGraph(numberQuantiles, xxQuantiles, xyQuantiles);
     TGraph *ygraph = new TGraph(numberQuantiles, yxQuantiles, yyQuantiles);
     TGraphQQ *qq = new TGraphQQ(numberQuantiles, yyQuantiles, numberQuantiles, xyQuantiles);
-    TCanvas *canvas = new TCanvas("canvas", "testing");
-    gStyle->SetPalette(kBird);
-    gStyle->SetOptStat(11);
-    canvas->Divide(2, 4);
 
-    {
-    canvas->cd(1);
-    gPad->SetLogz();
-    histogram->Draw("Colz");
 
-    // canvas->cd(2);
-    // gPad->SetGrid();
-    // qq->SetTitle("Quantile-Quantile Graph");
-    // qq->SetMarkerStyle(21);
-    // qq->SetMarkerColor(kRed);
-    // qq->SetMarkerSize(0.5);
-    // qq->Draw("ap");
-    
-    canvas->cd(3);
-    xProjection->SetTitle("TPC Projection");
-    xProjection->SetXTitle("TPC RefMult");
-    xProjection->SetYTitle("Counts");
-    xProjection->Draw();
-    
-    canvas->cd(4);
-    yProjection->SetTitle("Linear Weights Projection");
-    yProjection->SetXTitle("Linear Weight Multiplicity");
-    yProjection->SetYTitle("Counts");
-    yProjection->Draw();
-    
-    canvas->cd(5);
-    xgraph->SetMarkerStyle(21);
-    xgraph->SetMarkerColor(kRed);
-    xgraph->SetMarkerSize(0.5);
-    xgraph->SetTitle("TPC Quantiles");
-    xgraph->GetXaxis()->SetTitle("Quantile");
-    xgraph->GetYaxis()->SetTitle("TPC RefMult");
-    xgraph->Draw("ap");
-    
-    canvas->cd(6);
-    ygraph->SetMarkerStyle(21);
-    ygraph->SetMarkerColor(kRed);
-    ygraph->SetMarkerSize(0.5);
-    ygraph->SetTitle("Linear Weights Quantiles");
-    ygraph->GetXaxis()->SetTitle("Quantile");
-    ygraph->GetYaxis()->SetTitle("Linear Weight Multiplicity");
-    ygraph->Draw("ap");
+    TH2D ***quantileSections = (TH2D***)malloc(sizeof(TH2D**) * 20);
+    TH1D ***quantileProjections = (TH1D***)malloc(sizeof(TH1D**) * 20);
 
-    canvas->cd(7); // too many
-    gPad->SetLogz();
-    quantileHistogram[0]->Draw("Colz");
-
-    canvas->cd(8); // too many
-    gPad->SetLogz();
-    quantileHistogram[1]->Draw("Colz");
-
-    canvas->cd(2);
-    quantileXProject->SetLineColor(kRed);
-    quantileXProject->SetMarkerColor(kRed);
-    quantileXProject->SetMarkerStyle(kOpenTriangleUp);
-    quantileXProject->SetMarkerSize(0.5);
-    quantileXProject->Draw("hist l p");
-    
-    // canvas->cd(8);
-    quantileYProject->SetLineColor(kBlue);
-    quantileYProject->SetMarkerColor(kBlue);
-    quantileYProject->SetMarkerStyle(kStar);
-    quantileYProject->SetMarkerSize(0.5);
-    quantileYProject->Draw("same hist l p");
+    for (uint32_t i = 0; i < 20; i++) {
+        int minQuant, maxQuant;
+        minQuant = 5 * i;
+        maxQuant = 5 + 5 * i;
+        quantileSections[i] = getQuantileRange(minQuant, maxQuant, histogram, xyQuantiles, yyQuantiles, keyName);
+        quantileProjections[i] = (TH1D**)malloc(sizeof(TH1D*) * 2);
+        quantileProjections[i][0] = quantileSections[i][0]->ProjectionX();
+        quantileProjections[i][0]->SetTitle(Form("tpc_%d%%-%d%%", minQuant, maxQuant));
+        quantileProjections[i][1] = quantileSections[i][1]->ProjectionX();
+        quantileProjections[i][1]->SetTitle(Form("epd_%d%%-%d%%", minQuant, maxQuant));
     }
+    // quantileHistograms[0] = getQuantileRange(0, 10, histogram, xyQuantiles, yyQuantiles, method);
 
 
-    TH2D ***quantileHistograms = (TH2D***)malloc(sizeof(TH2D**) * 4);
-    TH1D **quantileXProjects = (TH1D**)malloc(sizeof(TH1D*) * 4);
-    TH1D **quantileYProjects = (TH1D**)malloc(sizeof(TH1D*) * 4);
+    if (draw) {
+        TCanvas *canvas = new TCanvas("canvas", "testing");
+        gStyle->SetPalette(kBird);
+        gStyle->SetOptStat(11);
+        canvas->Divide(2, 4);
+        canvas->cd(1);
+        gPad->SetLogz();
+        histogram->Draw("Colz");
 
-    const char *method = "Ridge, -1e5";
-    quantileHistograms[0] = getQuantileRange(0, 10, histogram, xyQuantiles, yyQuantiles, method);
-    quantileHistograms[1] = getQuantileRange(70, 80, histogram, xyQuantiles, yyQuantiles, method);
-    quantileHistograms[2] = getQuantileRange(95, 100, histogram, xyQuantiles, yyQuantiles, method);
-    quantileHistograms[3] = getQuantileRange(94, 100, histogram, xyQuantiles, yyQuantiles, method);
+        TH2D **quantileHistogram = getQuantileRange(95, 100, histogram, xyQuantiles, yyQuantiles, "");
+        TH1D *quantileXProject = quantileHistogram[0]->ProjectionX();
+        TH1D *quantileYProject = quantileHistogram[1]->ProjectionX();
 
-    for (uint32_t i = 0; i < 4; i++) {
-        quantileXProjects[i] = quantileHistograms[i][0]->ProjectionX();
-        // std::cout << quantileXProjects[i]->ComputeIntegral() << std::endl;
-        quantileYProjects[i] = quantileHistograms[i][1]->ProjectionX();
-        // std::cout << quantileYProjects[i]->ComputeIntegral() << std::endl << std::endl;
+
+        // canvas->cd(2);
+        // gPad->SetGrid();
+        // qq->SetTitle("Quantile-Quantile Graph");
+        // qq->SetMarkerStyle(21);
+        // qq->SetMarkerColor(kRed);
+        // qq->SetMarkerSize(0.5);
+        // qq->Draw("ap");
+        
+        canvas->cd(3);
+        xProjection->SetTitle("TPC Projection");
+        xProjection->SetXTitle("TPC RefMult");
+        xProjection->SetYTitle("Counts");
+        xProjection->Draw();
+        
+        canvas->cd(4);
+        yProjection->SetTitle("Linear Weights Projection");
+        yProjection->SetXTitle("Linear Weight Multiplicity");
+        yProjection->SetYTitle("Counts");
+        yProjection->Draw();
+        
+        canvas->cd(5);
+        xgraph->SetMarkerStyle(21);
+        xgraph->SetMarkerColor(kRed);
+        xgraph->SetMarkerSize(0.5);
+        xgraph->SetTitle("TPC Quantiles");
+        xgraph->GetXaxis()->SetTitle("Quantile");
+        xgraph->GetYaxis()->SetTitle("TPC RefMult");
+        xgraph->Draw("ap");
+        
+        canvas->cd(6);
+        ygraph->SetMarkerStyle(21);
+        ygraph->SetMarkerColor(kRed);
+        ygraph->SetMarkerSize(0.5);
+        ygraph->SetTitle("Linear Weights Quantiles");
+        ygraph->GetXaxis()->SetTitle("Quantile");
+        ygraph->GetYaxis()->SetTitle("Linear Weight Multiplicity");
+        ygraph->Draw("ap");
+
+        canvas->cd(7); // too many
+        gPad->SetLogz();
+        quantileHistogram[0]->Draw("Colz");
+
+        canvas->cd(8); // too many
+        gPad->SetLogz();
+        quantileHistogram[1]->Draw("Colz");
+
+        canvas->cd(2);
+        quantileXProject->SetLineColor(kRed);
+        quantileXProject->SetMarkerColor(kRed);
+        quantileXProject->SetMarkerStyle(kOpenTriangleUp);
+        quantileXProject->SetMarkerSize(0.5);
+        quantileXProject->Draw("hist l p");
+        
+        // canvas->cd(8);
+        quantileYProject->SetLineColor(kBlue);
+        quantileYProject->SetMarkerColor(kBlue);
+        quantileYProject->SetMarkerStyle(kStar);
+        quantileYProject->SetMarkerSize(0.5);
+        quantileYProject->Draw("same hist l p");
+
+
+        TH2D ***quantileHistograms = (TH2D***)malloc(sizeof(TH2D**) * 3);
+        TH1D **quantileXProjects = (TH1D**)malloc(sizeof(TH1D*) * 3);
+        TH1D **quantileYProjects = (TH1D**)malloc(sizeof(TH1D*) * 3);
+
+        const char *method = "Linear Weighting";
+        quantileHistograms[0] = getQuantileRange(0, 10, histogram, xyQuantiles, yyQuantiles, method);
+        quantileHistograms[1] = getQuantileRange(70, 80, histogram, xyQuantiles, yyQuantiles, method);
+        quantileHistograms[2] = getQuantileRange(95, 100, histogram, xyQuantiles, yyQuantiles, method);
+
+        for (uint32_t i = 0; i < 3; i++) {
+            quantileXProjects[i] = quantileHistograms[i][0]->ProjectionX();
+            quantileYProjects[i] = quantileHistograms[i][1]->ProjectionX();
+        }
+
+
+        TCanvas *canvas2 = new TCanvas("canvas2", "Quantile Ranges", 1000, 1000);
+        char *formatA = "hist l p";
+        char *formatB = "same hist l p";
+        char *format = formatA;
+        for (uint32_t i = 0; i < 3; i++) {
+            gPad->SetLogy();
+            quantileXProjects[i]->SetLineColor(kRed);
+            quantileXProjects[i]->SetMarkerColor(kRed);
+            quantileXProjects[i]->SetMarkerStyle(kOpenTriangleUp);
+            quantileXProjects[i]->SetMarkerSize(0.5);
+            quantileXProjects[i]->Draw(format);
+            format = formatB;
+
+            quantileYProjects[i]->SetLineColor(kBlue);
+            quantileYProjects[i]->SetMarkerColor(kBlue);
+            quantileYProjects[i]->SetMarkerStyle(kStar);
+            quantileYProjects[i]->SetMarkerSize(0.5);
+            quantileYProjects[i]->Draw(format);
+
+            TLegend *legend = new TLegend(0.65, 0.78, 0.75, 0.85);
+            legend->SetBorderSize(0);
+            legend->SetFillColor(0);
+            legend->SetTextSize(0.03);
+            legend->AddEntry(quantileXProjects[i]->GetName(), "RefMult", "l");
+            legend->AddEntry(quantileYProjects[i]->GetName(), "Linear Weights", "l");
+            legend->Draw();
+        }
+        canvas2->Draw();
     }
-
-
-    TCanvas *canvas2 = new TCanvas("canvas2", "Quantile Ranges", 1000, 1000);
-    // canvas2->Divide(2, 2);
-    char *formatA = "hist l p";
-    char *formatB = "same hist l p";
-    char *format = formatA;
-    for (uint32_t i = 0; i < 3; i++) {
-        // canvas2->cd(i + 1);
-        gPad->SetLogy();
-        quantileXProjects[i]->SetLineColor(kRed);
-        quantileXProjects[i]->SetMarkerColor(kRed);
-        quantileXProjects[i]->SetMarkerStyle(kOpenTriangleUp);
-        quantileXProjects[i]->SetMarkerSize(0.5);
-        quantileXProjects[i]->Draw(format);
-        format = formatB;
-
-        quantileYProjects[i]->SetLineColor(kBlue);
-        quantileYProjects[i]->SetMarkerColor(kBlue);
-        quantileYProjects[i]->SetMarkerStyle(kStar);
-        quantileYProjects[i]->SetMarkerSize(0.5);
-        quantileYProjects[i]->Draw(format);
-
-        TLegend *legend = new TLegend(0.65, 0.78, 0.75, 0.85);
-        legend->SetBorderSize(0);
-        legend->SetFillColor(0);
-        legend->SetTextSize(0.03);
-        legend->AddEntry(quantileXProjects[i]->GetName(), "RefMult", "l");
-        legend->AddEntry(quantileYProjects[i]->GetName(), "Linear Weights", "l");
-        legend->Draw();
-
-    }
-    canvas2->Draw();
-    TFile output("data/quantiles.root", "UPDATE");
-    canvas2->Write("ridge_-1e5");
-    output.Close();
-
+    return quantileProjections;
 }
 
-void quantiles(const char *inHistName="data/linear_hist_data.root") {
-    TFile inHist(inHistName);
-    TH2D *histogram;
-    inHist.GetObject("histogram", histogram);
-    histogram->SetDirectory(0); // what is this black magic
-    inHist.Close();
-    quantileAnalysis(histogram);
+void runQuantileAnalysis(TH2D *input, TDirectory *output, const char *keyName) {
+    // Change this to loop over all the histograms in epd_tpc_relations.root
+    TH1D ***quantileProjectsions = quantileAnalysis(input, keyName);
+    for (uint32_t i = 0; i < 20; i++) {
+        output->WriteObject(quantileProjectsions[i][0], quantileProjectsions[i][0]->GetTitle());
+        output->WriteObject(quantileProjectsions[i][1], quantileProjectsions[i][1]->GetTitle());
+    }
+}
+
+void quantiles(const char *inHistName="data/epd_tpc_relations.root") {
+    TFile rootFile(inHistName, "UPDATE");
+    TDirectory *methods_directory = rootFile.GetDirectory("methods");
+    TDirectory *quantile_directory = rootFile.mkdir("quantiles", "quantiles", true);
+    TList *keys = methods_directory->GetListOfKeys();
+    TH2D *inputHistogram;
+    // std::vector<const char*> histograms;
+    
+    // Get names of histograms
+    for (TIter key = keys->begin(); key != keys->end(); ++key) {
+        const char *keyName = (*key)->GetName();
+        std::cout << keyName << std::endl;
+        methods_directory->GetObject(keyName, inputHistogram);
+        runQuantileAnalysis(inputHistogram, quantile_directory->mkdir(keyName, keyName, true), keyName);
+    }
+
+
+    rootFile.Close();
+    return;
+
+
 }

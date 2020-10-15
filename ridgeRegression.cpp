@@ -24,11 +24,10 @@
 #include "TVectorD.h"
 
 const uint32_t dim = 17;
-float alpha = 1e8;
 
 // Takes the data matrix c and global vector g and generates 
 // weights relating the two using ridge regression
-TMatrixD* generateWeights(const TMatrixD *c, const TVectorD * g) {
+TMatrixD* generateWeights(const TMatrixD *c, const TVectorD * g, float alpha) {
     TMatrixD* data = new TMatrixD(c->GetNrows() + 1, c->GetNcols());
     TMatrixD* expected = new TMatrixD(dim, 1);
     TMatrixD* identity = new TMatrixD(dim, dim);
@@ -102,7 +101,7 @@ TVectorD* predictTPCMultiplicity(TMatrixD *weights, TMatrixD *epdData) {
     return predictedTCPMultiplicity;
 }
 
-void ridgeRegression(const char *inFileName = "data/ringSums.root") {
+void ridgeRegression(const char *inFileName = "data/detector_data.root", float alpha=1e7) {
     std::cout << "Running..." <<std::endl;
     
     TFile inFile(inFileName);
@@ -112,7 +111,7 @@ void ridgeRegression(const char *inFileName = "data/ringSums.root") {
     inFile.GetObject("tpc_multiplicity", g);
 
     std::cout << "Generating Weights.." << std::endl;
-    TMatrixD *weights = generateWeights(c, g);
+    TMatrixD *weights = generateWeights(c, g, alpha);
     std::cout << "Weights Generated" << std::endl;
     std::cout << "Weights:\n";
     weights->Print();
@@ -130,60 +129,23 @@ void ridgeRegression(const char *inFileName = "data/ringSums.root") {
     int32_t realMin = 0;
     int32_t realMax = 350; 
     
-    alpha = 0;
-    weights = generateWeights(c, g);
-    predictions = predictTPCMultiplicity(weights, c);
-    TH2D *a_0 = new TH2D("alpha=0", "alpha=0;TPC RefMult;Ridge Regression Prediction",
+    TH2D *ridge_histogram = new TH2D(Form("alpha=%f", alpha), Form("alpha=%f;TPC RefMult;Ridge Regression Prediction", alpha),
                                   realBins, realMin, realMax,
                                   predictBins, predictMin, predictMax);
     for (uint32_t i = 0; i < g->GetNrows(); i++) {
-        a_0->Fill((*g)[i], (*predictions)[i]);
-    }
-
-
-    alpha = -1e5;
-    weights = generateWeights(c, g);
-    predictions = predictTPCMultiplicity(weights, c);
-    TH2D *a_1e5 = new TH2D("alpha=1e-5", "alpha=1e-5;TPC RefMult;Ridge Regression Prediction",
-                                  realBins, realMin, realMax,
-                                  predictBins, predictMin, predictMax);
-    for (uint32_t i = 0; i < g->GetNrows(); i++) {
-        a_1e5->Fill((*g)[i], (*predictions)[i]);
-    }
-
-
-    alpha = -1e6;
-    weights = generateWeights(c, g);
-    predictions = predictTPCMultiplicity(weights, c);
-    TH2D *a_1e6 = new TH2D("alpha=1e6", "alpha=1e6;TPC RefMult;Ridge Regression Prediction",
-                                  realBins, realMin, realMax,
-                                  predictBins, predictMin, predictMax);
-    for (uint32_t i = 0; i < g->GetNrows(); i++) {
-        a_1e6->Fill((*g)[i], (*predictions)[i]);
-    }
-
-
-    alpha = -1e7;
-    weights = generateWeights(c, g);
-    predictions = predictTPCMultiplicity(weights, c);
-    TH2D *a_1e7 = new TH2D("alpha=1e7", "alpha=1e7;TPC RefMult;Ridge Regression Prediction",
-                                  realBins, realMin, realMax,
-                                  predictBins, predictMin, predictMax);
-    for (uint32_t i = 0; i < g->GetNrows(); i++) {
-        a_1e7->Fill((*g)[i], (*predictions)[i]);
+        ridge_histogram->Fill((*g)[i], (*predictions)[i]);
     }
     
-    TFile outFile("data/ridge_-1e5_hist_data.root", "RECREATE");
-    a_1e5->Write("histogram");
+    TFile outFile("data/epd_tpc_relations.root", "UPDATE");
+    outFile.mkdir("methods", "methods", true);
+    outFile.cd("methods");
+    ridge_histogram->Write(Form("ridge_%f_detector", alpha));
     outFile.Close();
 
-    outFile.Open("data/ridge_-1e6_hist_data.root", "RECREATE");
-    a_1e6->Write("histogram");
-    outFile.Close();
-
-    outFile.Open("data/ridge_-1e7_hist_data.root", "RECREATE");
-    a_1e7->Write("histogram");
-    outFile.Close();
+    bool draw = false;
+    if (!draw) {
+        return;
+    }
 
     // Everything from here down is plotting
     gStyle->SetPalette(kBird);
@@ -192,26 +154,9 @@ void ridgeRegression(const char *inFileName = "data/ringSums.root") {
     gStyle->SetStatY(0.85);
 
 
-
-
-    TCanvas *canvas = new TCanvas("canvas", "canvas", 1900, 1000);
-    canvas->Divide(2, 2);
-
-    canvas->cd(1);
+    TCanvas *canvas = new TCanvas("canvas", "canvas", 1000, 1000);
     gPad->SetLogz();
-    a_0->Draw("Colz");
-
-    canvas->cd(2);
-    gPad->SetLogz();
-    a_1e5->Draw("Colz");
-
-    canvas->cd(3);
-    gPad->SetLogz();
-    a_1e6->Draw("Colz");
-
-    canvas->cd(4);
-    gPad->SetLogz();
-    a_1e7->Draw("Colz");
+    ridge_histogram->Draw("Colz");
 
     std::cout << "Plotted " << g->GetNrows() << " events\n";
 }

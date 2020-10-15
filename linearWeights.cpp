@@ -136,7 +136,7 @@ TVectorD* predictTPCMultiplicity(TMatrixD *weights, TMatrixD *epdData) {
     return predictedTCPMultiplicity;
 }
 
-void linearWeights(const char *inFileName = "data/ringSums.root") {
+void linearWeights(const char *inFileName = "data/detector_data.root") {
     std::cout << "Running..." <<std::endl;
     
     TFile inFile(inFileName);
@@ -170,9 +170,10 @@ void linearWeights(const char *inFileName = "data/ringSums.root") {
     int32_t realMin = 0;
     int32_t realMax = 350;
 
-    TH2D *predictVsReal = new TH2D("predictVsReal", "2D Histo;TPC RefMult;Linear Weighed Prediction",
+    TH2D *predictVsReal = new TH2D("linear_detector", "2D Histo;TPC RefMult;Linear Weighed Prediction",
                                   realBins, realMin, realMax,
                                   predictBins, predictMin, predictMax);
+    predictVsReal->SetTitle("Predicted Multiplicity vs TPC Multiplicity, 7.7 GeV, Detector Data, TOF Selector");
 
 
     for (uint32_t i = 0; i < g->GetNrows(); i++) {
@@ -180,14 +181,18 @@ void linearWeights(const char *inFileName = "data/ringSums.root") {
     }
 
 
-    TCanvas *canvas = new TCanvas("canvas", "canvas", 700, 500);
-    gPad->SetLogz();
+    bool draw = false;
+    if (draw) {
+        // TCanvas *canvas = new TCanvas("canvas", "canvas", 700, 500);
+        // gPad->SetLogz();
+        // predictVsReal->Draw("Colz");
+    }
 
-    predictVsReal->SetTitle("Predicted Multiplicity vs TPC Multiplicity, 7.7 GeV, Detector Data, TOF Selector");
-    predictVsReal->Draw("Colz");
     std::cout << "Plotted " << g->GetNrows() << " events\n";
 
-    TFile outFile("data/hist_data.root", "RECREATE");
-    predictVsReal->Write("histogram");
+    TFile outFile("data/epd_tpc_relations.root", "UPDATE");
+    outFile.mkdir("methods", "methods", true);
+    outFile.cd("methods");
+    predictVsReal->Write("linear_detector");
     outFile.Close();
 }
