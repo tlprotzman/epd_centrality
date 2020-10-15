@@ -1,5 +1,5 @@
 /**
- * \brief Plots the percetiles of the global as well as the
+ * \brief Generates the percetiles of the global as well as the
  *        predicted percentiles
  * 
  * \author Tristan Protzman
