@@ -1,6 +1,8 @@
 /**
- * \brief Plots the percetiles of the global as well as the
+ * \brief Plots the percentiles of the global as well as the
  *        predicted percentiles as created by quantiles.cpp
+ * 
+ *      As a note there is not a chance this doesn't have memory leakes in its current form
  * 
  * \author Tristan Protzman
  * \date 15 October 2020
@@ -15,9 +17,39 @@
 #include <TH1D.h>
 #include <TLegend.h>
 #include <TGraph.h>
+#include <TColor.h>
 
 #include <iostream> 
 
+// Since data is stored as 5 percent ranges, it is convenient to be able to ask
+// for a larger range in dynamic way, combinding them as needed.
+TH1D *getQuantileRange(int min, int max, TDirectory *dir, const char *mode) {
+    if (min % 5 != 0 || max % 5 != 0) {
+        std::cerr << "Quantiles are stored in 5%% increments, cannot get desired range: " << min << "-" << max << std::endl;
+        return nullptr;
+    }
+
+    TH1D *range = nullptr;
+
+    int numQuantiles = (max - min) / 5;
+    std::cout << "Loading " << numQuantiles << "bins" << std::endl;
+    dir->GetObject(Form("%s_%d%%-%d%%;1", mode, min, min + 5), range);
+    std::cout << "form: " << Form("%s_%d%%-%d%%;1", mode, min, min + 5) << std::endl;
+    if (range == nullptr) {
+        std::cerr << "WTF" << std::endl;
+    }
+    
+    for (uint32_t i = 1; i < numQuantiles; i++) {
+        std::cout << "This better not be running" << std::endl;
+        TH1D *temp = nullptr;
+        dir->GetObject(Form("%s_%d%%-%d%%;1", mode, min + 5 * i, min + 5 * (i + 1)), temp);
+        if (temp == nullptr) {
+            std::cerr << "WTF" << std::endl;
+        }
+    }
+    TH1D *retVal = (TH1D*)range->Clone(Form("%s_%d_%d", mode, min, max));
+    return retVal;
+}
 
 // Recreates figure 11, comparing tpc quantiles to epd quantiles
 void quantileComparison(TDirectory *dir, const char *name) {
@@ -25,54 +57,36 @@ void quantileComparison(TDirectory *dir, const char *name) {
     // dir->ls();
     // We want to compare the 0-5% (95-100%), 20-30% (70-80%), and 90-100% (0-10%) ranges
     TH1D *tpc_95_100, *epd_95_100;
+    TH1D *tpc_65_70,  *epd_65_70;
+    TH1D *tpc_15_20,  *epd_15_20;
+
+    tpc_15_20 = (TH1D*)getQuantileRange(15, 20, dir, "tpc")->Clone();
+    epd_15_20 = (TH1D*)getQuantileRange(15, 20, dir, "epd")->Clone();
+
+    tpc_65_70 = (TH1D*)getQuantileRange(65, 70, dir, "tpc")->Clone();
+    epd_65_70 = (TH1D*)getQuantileRange(65, 70, dir, "epd")->Clone();
+
+    tpc_95_100 = (TH1D*)getQuantileRange(95, 100, dir, "tpc")->Clone();
+    epd_95_100 = (TH1D*)getQuantileRange(95, 100, dir, "epd")->Clone();
     
-    TH1D *tpc_70_80, *epd_70_80;
-    TH1D *tpc_70_75, *epd_70_75;
-    TH1D *tpc_75_80, *epd_75_80;
-    
-    TH1D *tpc_0_10, *epd_0_10;
-    TH1D *tpc_0_5, *epd_0_5;
-    TH1D *tpc_5_10, *epd_5_10;
-
-    dir->GetObject("tpc_95%-100%;1", tpc_95_100);
-    dir->GetObject("epd_95%-100%;1", epd_95_100);
-
-    dir->GetObject("tpc_70%-75%;1", tpc_70_75);
-    dir->GetObject("epd_70%-75%;1", epd_70_75);
-    dir->GetObject("tpc_75%-80%;1", tpc_75_80);
-    dir->GetObject("epd_75%-80%;1", epd_75_80);
-
-    dir->GetObject("tpc_0%-5%;1", tpc_0_5);
-    dir->GetObject("epd_0%-5%;1", epd_0_5);
-    dir->GetObject("tpc_5%-10%;1", tpc_5_10);
-    dir->GetObject("epd_5%-10%;1", epd_5_10);
-    
-    // Merge 70-75 and 75-80 ranges into 70-80 range
-    tpc_70_80 = (TH1D*)tpc_70_75->Clone("tpc_70_80");
-    tpc_70_80->Add(tpc_75_80);
-
-    epd_70_80 = (TH1D*)epd_70_75->Clone("epd_70_80");
-    epd_70_80->Add(epd_75_80);
-
-    // Merge 0-5 and 5-10 ranges into 70-80 range
-    tpc_0_10 = (TH1D*)tpc_0_5->Clone("tpc_0_10");
-    tpc_0_10->Add(tpc_5_10);
-
-    epd_0_10 = (TH1D*)epd_0_5->Clone("epd_0_10");
-    epd_0_10->Add(epd_5_10);
 
     TH1D *quantileTPCProjects[3];
     TH1D *quantileEPDProjects[3];
 
-    quantileTPCProjects[0] = tpc_0_10;
-    quantileTPCProjects[1] = tpc_70_80;
+    quantileTPCProjects[0] = tpc_15_20;
+    quantileTPCProjects[1] = tpc_65_70;
     quantileTPCProjects[2] = tpc_95_100;
 
-    quantileEPDProjects[0] = epd_0_10;
-    quantileEPDProjects[1] = epd_70_80;
+    quantileEPDProjects[0] = epd_15_20;
+    quantileEPDProjects[1] = epd_65_70;
     quantileEPDProjects[2] = epd_95_100;
 
     // Plot results
+    TLegend *legend = new TLegend(0.65, 0.78, 0.75, 0.85);
+    legend->SetBorderSize(0);
+    legend->SetFillColor(0);
+    legend->SetTextSize(0.03);
+
     TCanvas canvas(name, name, 1000, 1000);
     char *formatA = "hist l p";
     char *formatB = "same hist l p";
@@ -80,36 +94,31 @@ void quantileComparison(TDirectory *dir, const char *name) {
     quantileTPCProjects[0]->SetTitle(name);
     quantileTPCProjects[0]->SetStats(0);
 
-    for (uint32_t i = 0; i < 3; i++) {
+    for (int32_t i = 0; i < 3; i++) {
         gPad->SetLogy();
-        quantileTPCProjects[i]->SetLineColor(kRed);
-        quantileTPCProjects[i]->SetMarkerColor(kRed);
-        quantileTPCProjects[i]->SetMarkerStyle(kOpenTriangleUp);
-        quantileTPCProjects[i]->SetMarkerSize(0.5);
-        quantileTPCProjects[i]->Draw(format);
-        format = formatB;
-
         quantileEPDProjects[i]->SetLineColor(kBlue);
         quantileEPDProjects[i]->SetMarkerColor(kBlue);
         quantileEPDProjects[i]->SetMarkerStyle(kStar);
         quantileEPDProjects[i]->SetMarkerSize(0.5);
         quantileEPDProjects[i]->Draw(format);
-
-        TLegend *legend = new TLegend(0.65, 0.78, 0.75, 0.85);
-        legend->SetBorderSize(0);
-        legend->SetFillColor(0);
-        legend->SetTextSize(0.03);
-        legend->AddEntry(quantileTPCProjects[i]->GetName(), "RefMult", "l");
-        legend->AddEntry(quantileEPDProjects[i]->GetName(), name, "l");
-        legend->Draw();
+        format = formatB;
+                
+        quantileTPCProjects[i]->SetLineColor(kRed);
+        quantileTPCProjects[i]->SetMarkerColor(kRed);
+        quantileTPCProjects[i]->SetMarkerStyle(kOpenTriangleUp);
+        quantileTPCProjects[i]->SetMarkerSize(0.5);
+        quantileTPCProjects[i]->Draw(format);        
     }
+    legend->AddEntry(quantileTPCProjects[0]->GetName(), "RefMult", "l");
+    legend->AddEntry(quantileEPDProjects[0]->GetName(), name, "l");
+    legend->Draw();
     canvas.Draw();
     canvas.SaveAs(Form("histograms/%s.png", name));
 
 }
 
 // Compare the variance of 10% quantiles, as in figure 12 in the paper I am referencing
-TGraph **quantileVarianceComparison(TDirectory *dir, const char *name) {
+TGraph *quantileVarianceComparison(TDirectory *dir, const char *name) {
     TH1D *epdQuantiles[20];
     TH1D *tpcQuantiles[20];
 
@@ -141,10 +150,9 @@ TGraph **quantileVarianceComparison(TDirectory *dir, const char *name) {
         }
         count[i] = i + 1;
     }
-    TGraph **graphs = (TGraph**)malloc(2 * sizeof(TGraph*));
-    graphs[0] = new TGraph(20, count, tpcVariance);
-    graphs[1] = new TGraph(20, count, epdVariance);
-    graphs[1]->SetTitle(name);
+    TGraph *graphs;
+    graphs = new TGraph(20, count, epdVariance);
+    graphs->SetTitle(name);
 
     return graphs;
 }
@@ -155,28 +163,39 @@ void quantileSummary(char *infile="data/epd_tpc_relations.root") {
 
     TList *methods = quantile_directory->GetListOfKeys();
 
-    TGraph **varianceGraphs[5];    // WILL NOT SCALE AS IS
+    TGraph *varianceGraphs[5];    // WILL NOT SCALE AS IS
 
     int i = 0;
     for (TIter method = methods->begin(); method != methods->end(); ++method) {
         const char *methodName = (*method)->GetName();
         std::cout << methodName << std::endl;
-        // quantileComparison(quantile_directory->GetDirectory(methodName), methodName);
+        quantileComparison(quantile_directory->GetDirectory(methodName), methodName);
         varianceGraphs[i] = quantileVarianceComparison(quantile_directory->GetDirectory(methodName), methodName);
         i++;
     }
 
+    // Plotting variance graph
+
     TCanvas c2("variances", "variances", 1000, 1000);
+    TLegend *legend = new TLegend(0.65, 0.25, 0.75, 0.45);
+    legend->SetBorderSize(0);
+    legend->SetFillColor(0);
+    legend->SetTextSize(0.03);
+    gPad->SetLogy();
+
     for (uint32_t i = 0; i < 5; i++) {
+        varianceGraphs[i]->SetLineColor(i + 1);
         if (i == 0) {
-            varianceGraphs[i][1]->Draw("AC*");
+            varianceGraphs[i]->Draw("AC*");
         }
         else {
-            varianceGraphs[i][1]->Draw("C*");
+            varianceGraphs[i]->Draw("C*");
         }
+        legend->AddEntry(varianceGraphs[i], varianceGraphs[i]->GetTitle(), "l");
     }
     // varianceGraphs[0][0]->Draw();
     c2.Draw();
+    legend->Draw();
     c2.SaveAs("histograms/variances.png");
     rootFile.Close();
 }
