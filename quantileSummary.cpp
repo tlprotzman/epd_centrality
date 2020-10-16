@@ -64,11 +64,11 @@ void quantileComparison(TDirectory *dir, const char *name) {
     TH1D *tpc_65_70,  *epd_65_70;
     TH1D *tpc_15_20,  *epd_15_20;
 
-    tpc_15_20 = (TH1D*)getQuantileRange(10, 25, dir, "tpc")->Clone();
-    epd_15_20 = (TH1D*)getQuantileRange(10, 25, dir, "epd")->Clone();
+    tpc_15_20 = (TH1D*)getQuantileRange(50, 60, dir, "tpc")->Clone();
+    epd_15_20 = (TH1D*)getQuantileRange(50, 60, dir, "epd")->Clone();
 
-    tpc_65_70 = (TH1D*)getQuantileRange(65, 70, dir, "tpc")->Clone();
-    epd_65_70 = (TH1D*)getQuantileRange(65, 70, dir, "epd")->Clone();
+    tpc_65_70 = (TH1D*)getQuantileRange(75, 85, dir, "tpc")->Clone();
+    epd_65_70 = (TH1D*)getQuantileRange(75, 85, dir, "epd")->Clone();
 
     tpc_95_100 = (TH1D*)getQuantileRange(95, 100, dir, "tpc")->Clone();
     epd_95_100 = (TH1D*)getQuantileRange(95, 100, dir, "epd")->Clone();
@@ -129,31 +129,24 @@ void quantileComparison(TDirectory *dir, const char *name) {
 
 // Compare the variance of 10% quantiles, as in figure 12 in the paper I am referencing
 TGraph *quantileVarianceComparison(TDirectory *dir, const char *name) {
-    TH1D *epdQuantiles[20];
-    TH1D *tpcQuantiles[20];
+    const int numQuantiles = 10;
+    int quantilesRange = 100 / numQuantiles;
+    TH1D *epdQuantiles[numQuantiles];
+    TH1D *tpcQuantiles[numQuantiles];
 
     TList *keys = dir->GetListOfKeys();
-    uint32_t i = 0;
-    for (TIter itr = keys->begin(); itr != keys->end(); ++itr) {
-        const char *key = (*itr)->GetName();
-        dir->GetObject(key, tpcQuantiles[i]);   // Quick and dirty and bad but maybe it'll work for now?
-        ++itr;
-        key = (*itr)->GetName();
-        dir->GetObject(key, epdQuantiles[i]);
-        if (epdQuantiles[i] == nullptr || tpcQuantiles[i] == nullptr) {
-            std::cerr << "it didn't work" << std::endl;
-            return nullptr;
-        }
-        i++;
+    for (uint32_t i = 0; i < numQuantiles; i++) {
+        tpcQuantiles[i] = getQuantileRange(i * quantilesRange, (i + 1) * quantilesRange, dir, "tpc");
+        epdQuantiles[i] = getQuantileRange(i * quantilesRange, (i + 1) * quantilesRange, dir, "epd");
     }
 
-    double *tpcVariance = (double*)malloc(20 * sizeof(double));
-    double *epdVariance = (double*)malloc(20 * sizeof(double));
-    double *count = (double*)malloc(20 * sizeof(double)); //memory leaks here
-    for (uint32_t i = 0; i < 20; i++) {
+    double *tpcVariance = (double*)malloc(numQuantiles * sizeof(double));
+    double *epdVariance = (double*)malloc(numQuantiles * sizeof(double));
+    double *count = (double*)malloc(numQuantiles * sizeof(double)); //memory leaks here
+    for (uint32_t i = 0; i < numQuantiles; i++) {
         tpcVariance[i] = tpcQuantiles[i]->GetRMS();
         if (tpcQuantiles[i]->GetRMS() < 0.0001) {
-            epdVariance[i] = 0;
+            epdVariance[i] = 1;
         }
         else {
             epdVariance[i] = epdQuantiles[i]->GetRMS() / tpcQuantiles[i]->GetRMS();
@@ -161,7 +154,7 @@ TGraph *quantileVarianceComparison(TDirectory *dir, const char *name) {
         count[i] = i + 1;
     }
     TGraph *graphs;
-    graphs = new TGraph(20, count, epdVariance);
+    graphs = new TGraph(numQuantiles, count, epdVariance);
     graphs->SetTitle(name);
 
     return graphs;
@@ -203,7 +196,6 @@ void quantileSummary(char *infile="data/epd_tpc_relations.root") {
         }
         legend->AddEntry(varianceGraphs[i], varianceGraphs[i]->GetTitle(), "l");
     }
-    // varianceGraphs[0][0]->Draw();
     c2.Draw();
     legend->Draw();
     c2.SaveAs("histograms/variances.png");
