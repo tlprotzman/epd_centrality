@@ -18,6 +18,7 @@
 #include <TLegend.h>
 #include <TGraph.h>
 #include <TColor.h>
+#include <TStyle.h>
 
 #include <iostream> 
 
@@ -34,18 +35,21 @@ TH1D *getQuantileRange(int min, int max, TDirectory *dir, const char *mode) {
     int numQuantiles = (max - min) / 5;
     std::cout << "Loading " << numQuantiles << "bins" << std::endl;
     dir->GetObject(Form("%s_%d%%-%d%%;1", mode, min, min + 5), range);
-    std::cout << "form: " << Form("%s_%d%%-%d%%;1", mode, min, min + 5) << std::endl;
+    // std::cout << "form: " << Form("%s_%d%%-%d%%;1", mode, min, min + 5) << std::endl;
     if (range == nullptr) {
         std::cerr << "WTF" << std::endl;
     }
     
     for (uint32_t i = 1; i < numQuantiles; i++) {
-        std::cout << "This better not be running" << std::endl;
+        // std::cout << "This better not be running" << std::endl;
         TH1D *temp = nullptr;
         dir->GetObject(Form("%s_%d%%-%d%%;1", mode, min + 5 * i, min + 5 * (i + 1)), temp);
+        // std::cout << "Form 2: " << Form("%s_%d%%-%d%%;1", mode, min + 5 * i, min + 5 * (i + 1)) << std::endl;
         if (temp == nullptr) {
             std::cerr << "WTF" << std::endl;
         }
+        range->Add(temp);
+        delete temp;
     }
     TH1D *retVal = (TH1D*)range->Clone(Form("%s_%d_%d", mode, min, max));
     return retVal;
@@ -60,18 +64,18 @@ void quantileComparison(TDirectory *dir, const char *name) {
     TH1D *tpc_65_70,  *epd_65_70;
     TH1D *tpc_15_20,  *epd_15_20;
 
-    tpc_15_20 = (TH1D*)getQuantileRange(15, 20, dir, "tpc")->Clone();
-    epd_15_20 = (TH1D*)getQuantileRange(15, 20, dir, "epd")->Clone();
+    tpc_15_20 = (TH1D*)getQuantileRange(10, 25, dir, "tpc")->Clone();
+    epd_15_20 = (TH1D*)getQuantileRange(10, 25, dir, "epd")->Clone();
 
     tpc_65_70 = (TH1D*)getQuantileRange(65, 70, dir, "tpc")->Clone();
     epd_65_70 = (TH1D*)getQuantileRange(65, 70, dir, "epd")->Clone();
 
     tpc_95_100 = (TH1D*)getQuantileRange(95, 100, dir, "tpc")->Clone();
     epd_95_100 = (TH1D*)getQuantileRange(95, 100, dir, "epd")->Clone();
-    
 
-    TH1D *quantileTPCProjects[3];
-    TH1D *quantileEPDProjects[3];
+    TH1D **quantileTPCProjects = (TH1D**)malloc(3 * sizeof(TH1D*));
+    TH1D **quantileEPDProjects = (TH1D**)malloc(3 * sizeof(TH1D*));
+
 
     quantileTPCProjects[0] = tpc_15_20;
     quantileTPCProjects[1] = tpc_65_70;
@@ -82,38 +86,44 @@ void quantileComparison(TDirectory *dir, const char *name) {
     quantileEPDProjects[2] = epd_95_100;
 
     // Plot results
+    TCanvas *canvas = new TCanvas(name, name, 1000, 1000);
+    canvas->SetLogy();
+    tpc_15_20->SetMinimum(1);
+
     TLegend *legend = new TLegend(0.65, 0.78, 0.75, 0.85);
     legend->SetBorderSize(0);
     legend->SetFillColor(0);
     legend->SetTextSize(0.03);
 
-    TCanvas canvas(name, name, 1000, 1000);
     char *formatA = "hist l p";
     char *formatB = "same hist l p";
-    char *format = formatA;
+    char *format = formatB;
     quantileTPCProjects[0]->SetTitle(name);
     quantileTPCProjects[0]->SetStats(0);
 
     for (int32_t i = 0; i < 3; i++) {
-        gPad->SetLogy();
+
+        quantileTPCProjects[i]->SetLineColor(kRed);
+        quantileTPCProjects[i]->SetMarkerColor(kRed);
+        quantileTPCProjects[i]->SetMarkerStyle(kOpenTriangleUp);
+        quantileTPCProjects[i]->SetMarkerSize(0.5);
+        quantileTPCProjects[i]->Draw(format);  
+        format = formatB;
+
         quantileEPDProjects[i]->SetLineColor(kBlue);
         quantileEPDProjects[i]->SetMarkerColor(kBlue);
         quantileEPDProjects[i]->SetMarkerStyle(kStar);
         quantileEPDProjects[i]->SetMarkerSize(0.5);
         quantileEPDProjects[i]->Draw(format);
-        format = formatB;
-                
-        quantileTPCProjects[i]->SetLineColor(kRed);
-        quantileTPCProjects[i]->SetMarkerColor(kRed);
-        quantileTPCProjects[i]->SetMarkerStyle(kOpenTriangleUp);
-        quantileTPCProjects[i]->SetMarkerSize(0.5);
-        quantileTPCProjects[i]->Draw(format);        
+
+        
     }
-    legend->AddEntry(quantileTPCProjects[0]->GetName(), "RefMult", "l");
-    legend->AddEntry(quantileEPDProjects[0]->GetName(), name, "l");
+    legend->AddEntry(quantileTPCProjects[0], "RefMult", "l");
+    legend->AddEntry(quantileEPDProjects[0], name, "l");
     legend->Draw();
-    canvas.Draw();
-    canvas.SaveAs(Form("histograms/%s.png", name));
+
+    canvas->Draw();
+    canvas->SaveAs(Form("histograms/%s.png", name));
 
 }
 
