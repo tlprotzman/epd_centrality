@@ -21,6 +21,7 @@
 #include <TStyle.h>
 
 #include <iostream> 
+#include <vector>
 
 // Since data is stored as 5 percent ranges, it is convenient to be able to ask
 // for a larger range in dynamic way, combinding them as needed.
@@ -166,16 +167,13 @@ void quantileSummary(char *infile="data/epd_tpc_relations.root") {
 
     TList *methods = quantile_directory->GetListOfKeys();
 
-    uint32_t numMethods = 3;
-    TGraph *varianceGraphs[numMethods];    // WILL NOT SCALE AS IS
+    std::vector<TGraph*> *varianceGraphs = new std::vector<TGraph*>;
 
-    int i = 0;
     for (TIter method = methods->begin(); method != methods->end(); ++method) {
         const char *methodName = (*method)->GetName();
         std::cout << methodName << std::endl;
         quantileComparison(quantile_directory->GetDirectory(methodName), methodName);
-        varianceGraphs[i] = quantileVarianceComparison(quantile_directory->GetDirectory(methodName), methodName);
-        i++;
+        varianceGraphs->push_back(quantileVarianceComparison(quantile_directory->GetDirectory(methodName), methodName));
     }
 
     // Plotting variance graph
@@ -187,18 +185,19 @@ void quantileSummary(char *infile="data/epd_tpc_relations.root") {
     legend->SetTextSize(0.03);
     gPad->SetLogy();
 
-    for (uint32_t i = 0; i < numMethods; i++) {
-        varianceGraphs[i]->SetLineColor(i + 1);
+    for (uint32_t i = 0; i < varianceGraphs->size(); i++) {
+        (*varianceGraphs)[i]->SetLineColor(i + 1);
         if (i == 0) {
-            varianceGraphs[i]->Draw("AC*");
+            (*varianceGraphs)[i]->Draw("AC*");
         }
         else {
-            varianceGraphs[i]->Draw("C*");
+            (*varianceGraphs)[i]->Draw("C*");
         }
-        legend->AddEntry(varianceGraphs[i], varianceGraphs[i]->GetTitle(), "l");
+        legend->AddEntry((*varianceGraphs)[i], (*varianceGraphs)[i]->GetTitle(), "l");
     }
     c2.Draw();
     legend->Draw();
     c2.SaveAs("histograms/variances.png");
     rootFile.Close();
+    delete varianceGraphs;
 }
