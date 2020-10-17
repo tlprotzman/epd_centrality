@@ -166,7 +166,8 @@ void quantileSummary(char *infile="data/epd_tpc_relations.root") {
 
     TList *methods = quantile_directory->GetListOfKeys();
 
-    TGraph *varianceGraphs[5];    // WILL NOT SCALE AS IS
+    uint32_t numMethods = 3;
+    TGraph *varianceGraphs[numMethods];    // WILL NOT SCALE AS IS
 
     int i = 0;
     for (TIter method = methods->begin(); method != methods->end(); ++method) {
@@ -186,7 +187,7 @@ void quantileSummary(char *infile="data/epd_tpc_relations.root") {
     legend->SetTextSize(0.03);
     gPad->SetLogy();
 
-    for (uint32_t i = 0; i < 5; i++) {
+    for (uint32_t i = 0; i < numMethods; i++) {
         varianceGraphs[i]->SetLineColor(i + 1);
         if (i == 0) {
             varianceGraphs[i]->Draw("AC*");
