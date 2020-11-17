@@ -43,23 +43,31 @@ void plotWeights() {
 
     TGraph *detector_weight_graph = new TGraph(16);
     TGraph *simulator_weight_graph = new TGraph(16);
-    TGraph *simulator_weight_outer_graph = new TGraph(16 - 7);
+    TGraph *simulator_weight_outer_graph = new TGraph(16);
     TGraph *zero = new TGraph(2);
 
-    detector_weight_graph->SetTitle(Form("Detector Weights, Bias=%f", (*detector_weights)[16][0]));
-    simulator_weight_graph->SetTitle(Form("Simulator Weights, Bias=%f", (*simulator_weights)[16][0]));
-    simulator_weight_outer_graph->SetTitle(Form("Simulator Weights, Outer 9 Rings, Bias=%f", (*simulator_weights_outer)[9][0]));
 
     for (uint32_t i = 0; i < 16; i++) {
         detector_weight_graph->SetPoint(i, i + 1, (*detector_weights)[i][0]);
         simulator_weight_graph->SetPoint(i, i + 1, (*simulator_weights)[i][0]);
         // printf("%d\t%f\n", i + 1, (*detector_weights)[i][0]);
     }
-    for (uint32_t i = 0; i < 16 - 7; i++) {
-        simulator_weight_outer_graph->SetPoint(i, i + 8, (*simulator_weights_outer)[i][0]);
+    uint32_t outer_rings_used = 0;
+    for (uint32_t i = 0; i < 16; i++) {
+        if ((*simulator_weights_outer)[i][0] != 0) {
+            simulator_weight_outer_graph->SetPoint(outer_rings_used, i + 1, (*simulator_weights_outer)[i][0]);
+            outer_rings_used++;
+            printf("%d\n", i);
+        }
     }
+    simulator_weight_outer_graph->Set(outer_rings_used);
+
     zero->SetPoint(0, 0, 0);
     zero->SetPoint(1, 16, 0);
+
+    detector_weight_graph->SetTitle(Form("Detector Weights, Bias=%f", (*detector_weights)[16][0]));
+    simulator_weight_graph->SetTitle(Form("Simulator Weights, Bias=%f", (*simulator_weights)[16][0]));
+    simulator_weight_outer_graph->SetTitle(Form("Simulator Weights, Outer %d Rings, Bias=%f", outer_rings_used, (*simulator_weights_outer)[16][0]));
 
     TCanvas *canvas = new TCanvas("Weights");
     TMultiGraph *graph = new TMultiGraph();

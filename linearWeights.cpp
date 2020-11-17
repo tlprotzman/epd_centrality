@@ -136,7 +136,7 @@ TVectorD* predictTPCMultiplicity(TMatrixD *weights, TMatrixD *epdData) {
     return predictedTCPMultiplicity;
 }
 
-void linearWeights(const char *inFileName = "data/simulated_data.root") {
+void linearWeights(const char *inFileName = "data/detector_data.root") {
     std::cout << "Running..." <<std::endl;
     
     TFile inFile(inFileName);

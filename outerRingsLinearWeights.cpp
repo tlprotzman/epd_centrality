@@ -120,7 +120,13 @@ TMatrixD* generateWeights (const TMatrixD *c, const TVectorD *g) {
     a->Print();
     #endif // DEBUG
 
-    
+    weights->Print();
+    for (uint32_t i = real_dim - 1; i >= inner_ring; i--) {
+        (*weights)[i][0] = (*weights)[i - inner_ring][0]; 
+    }
+    for(uint32_t i = 0; i < inner_ring; i++) {
+        (*weights)[i][0] = 0;
+    }
     return weights;
 }
 
@@ -133,9 +139,9 @@ TVectorD* predictTPCMultiplicity(TMatrixD *weights, TMatrixD *epdData) {
         // if (i%100 == 0) {
         //     std::cout << "Working on event " << i << "/" << numEvents << std::endl;
         // }
-        (*predictedTCPMultiplicity)[i] = (*weights)[dim - 1][0]; // Add the bias
-        for (uint32_t j = 0; j < dim - 1; j++) {
-            (*predictedTCPMultiplicity)[i] += (*epdData)[inner_ring+j][i] * (*weights)[j][0]; // Add the weighted input
+        (*predictedTCPMultiplicity)[i] = (*weights)[real_dim - 1][0]; // Add the bias
+        for (uint32_t j = 0; j < real_dim - 1; j++) {
+            (*predictedTCPMultiplicity)[i] += (*epdData)[j][i] * (*weights)[j][0]; // Add the weighted input
         }
     }
     // predictedTCPMultiplicity->Print();
