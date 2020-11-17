@@ -1,14 +1,16 @@
 /**
  * \brief Generates the vector W giving the linear 
  * weights to correlate the EPD nMIP data to the TPC multiplicity
+ * using only the outer rings
  * 
  * \author Tristan Protzman
- * \date September 17, 2020
+ * \date November 17, 2020
  * \email tlprotzman@gmail.com
  * 
  */
 
 // #define DEBUG
+
 
 #include <iostream>
 
@@ -24,9 +26,13 @@
 #include "TPad.h"
 #include "TStyle.h"
 #include "TVectorD.h"
+#include "TMatrixDUtils.h"
+#include "TVectorDfwd.h"
 
 
-const uint32_t dim = 17;
+const uint32_t real_dim = 17;
+const uint32_t inner_ring = 7;
+const uint32_t dim = real_dim - inner_ring;
 
 // (Step 1) A_{q, t}   = \sum_j=1^Nevents C_{q, j} C{t, j}
 // (Step 2) A_{17, t}  = \sum_j=1^Nevents C_{t, j}
@@ -51,7 +57,7 @@ TMatrixD* generateWeights (const TMatrixD *c, const TVectorD *g) {
         for (uint32_t t = 0; t < dim - 1; t++) {
             (*a)[q][t] = 0; // likely not needed
             for (uint32_t j = 0; j < numEvents; j++) {
-                (*a)[q][t] += (*c)[q][j] * (*c)[t][j];
+                (*a)[q][t] += (*c)[q + inner_ring][j] * (*c)[t + inner_ring][j];
             }
         }
     }
@@ -59,8 +65,8 @@ TMatrixD* generateWeights (const TMatrixD *c, const TVectorD *g) {
     // Step 2
     for (uint32_t t = 0; t < dim - 1; t++) {
         for (uint32_t j = 0; j < numEvents; j++) {
-            (*a)[dim - 1][t] += (*c)[t][j];
-            (*a)[t][dim - 1] += (*c)[t][j];
+            (*a)[dim - 1][t] += (*c)[t+inner_ring][j];
+            (*a)[t][dim - 1] += (*c)[t+inner_ring][j];
         }
     }
 
@@ -73,7 +79,7 @@ TMatrixD* generateWeights (const TMatrixD *c, const TVectorD *g) {
     for (uint32_t t = 0; t < dim - 1; t++) {
         (*b)[t][0] = 0;
         for (uint32_t j = 0; j < numEvents; j++) {
-            (*b)[t][0] += (*g)[j] * (*c)[t][j];
+            (*b)[t][0] += (*g)[j] * (*c)[t+inner_ring][j];
         }
     }
 
@@ -127,16 +133,16 @@ TVectorD* predictTPCMultiplicity(TMatrixD *weights, TMatrixD *epdData) {
         // if (i%100 == 0) {
         //     std::cout << "Working on event " << i << "/" << numEvents << std::endl;
         // }
-        (*predictedTCPMultiplicity)[i] = (*weights)[16][0]; // Add the bias
-        for (uint32_t j = 0; j < 16; j++) {
-            (*predictedTCPMultiplicity)[i] += (*epdData)[j][i] * (*weights)[j][0]; // Add the weighted input
+        (*predictedTCPMultiplicity)[i] = (*weights)[dim - 1][0]; // Add the bias
+        for (uint32_t j = 0; j < dim - 1; j++) {
+            (*predictedTCPMultiplicity)[i] += (*epdData)[inner_ring+j][i] * (*weights)[j][0]; // Add the weighted input
         }
     }
     // predictedTCPMultiplicity->Print();
     return predictedTCPMultiplicity;
 }
 
-void linearWeights(const char *inFileName = "data/simulated_data.root") {
+void outerRingsLinearWeights(const char *inFileName = "data/simulated_data.root") {
     std::cout << "Running..." <<std::endl;
     
     TFile inFile(inFileName);
@@ -144,6 +150,12 @@ void linearWeights(const char *inFileName = "data/simulated_data.root") {
     TVectorD *g;
     inFile.GetObject("ring_sums", c);           // should probably check for existance but...
     inFile.GetObject("tpc_multiplicity", g);
+    // TMatrixD *c = new TMatrixD(7, cI->GetNcols());
+    // *c = cI->GetSub(0, cI->GetNrows() - 1, 0, cI->GetNcols() - 1);
+    // c->Print();
+    // TVectorD *g = gI + 7;
+    // g->Print();
+    // return;
 
     std::cout << "Generating Weights.." << std::endl;
     TMatrixD *weights = generateWeights(c, g);
@@ -173,7 +185,7 @@ void linearWeights(const char *inFileName = "data/simulated_data.root") {
     TH2D *predictVsReal = new TH2D("linear_simulated", "2D Histo;RefMult1;X_{#zeta'}",
                                   realBins, realMin, realMax,
                                   predictBins, predictMin, predictMax);
-    predictVsReal->SetTitle("X_{#zeta'} vs RefMult1, 7.7 GeV, TOF Selected");
+    predictVsReal->SetTitle("X_{#zeta'} vs RefMult1, 7.7 GeV, TOF Selected, Outer 9 Rings");
 
 
     for (uint32_t i = 0; i < g->GetNrows(); i++) {
@@ -190,10 +202,10 @@ void linearWeights(const char *inFileName = "data/simulated_data.root") {
 
     std::cout << "Plotted " << g->GetNrows() << " events\n";
 
-    TFile outFile("data/epd_tpc_relations.root", "UPDATE");
+    TFile outFile("data/epd_tpc_relations_simulated.root", "UPDATE");
     outFile.mkdir("methods", "methods", true);
     outFile.cd("methods");
-    weights->Write("linear_weights");
+    weights->Write("linear_weights_outer");
     predictVsReal->Write("linear");
     outFile.Close();
 }
