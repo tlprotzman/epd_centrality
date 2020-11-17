@@ -20,7 +20,7 @@
 #include <TStyle.h>
 #include <TVectorD.h>
 
-void tpcVsTofSelection(const char *inFileName = "data/ringSums.root") {
+void tpcVsTofSelection(const char *inFileName = "data/detector_data.root") {
     TFile inFile(inFileName);
     TVectorD *tpc;
     TVectorD *tof;
@@ -31,7 +31,7 @@ void tpcVsTofSelection(const char *inFileName = "data/ringSums.root") {
 
 
     gStyle->SetPalette(kBird);
-    gStyle->SetOptStat(11);
+    gStyle->SetOptStat(0);
     gStyle->SetStatX(0.38);
     gStyle->SetStatY(0.85);
 
@@ -41,14 +41,14 @@ void tpcVsTofSelection(const char *inFileName = "data/ringSums.root") {
 
     uint32_t tofBins = 150;
     int32_t tofMin = 0;
-    int32_t tofMax = 750; 
+    int32_t tofMax = 450; 
 
     TH2D *tofVsTpc = new TH2D("TPC vs TOF", "2D Histo;b TOF Tray Multiplicity;TPC RefMult",
-                                  tofBins, tofMin, tofMax,
-                                  tpcBins, tpcMin, tpcMax);
+                                  tpcBins, tpcMin, tpcMax,
+                                  tofBins, tofMin, tofMax);
 
     int selectionWindow = 50;
-    TH2D *windowTofVsTpc = new TH2D("Windowed", "2D Histo;b TOF Tray Multiplicity;TPC RefMult",
+    TH2D *windowTofVsTpc = new TH2D("Windowed", "2D Histo;TPC RefMult;b TOF Tray Multiplicity",
                                         tofBins, tofMin, tofMax,
                                         tpcBins, tpcMin, tpcMax);
 
@@ -67,8 +67,8 @@ void tpcVsTofSelection(const char *inFileName = "data/ringSums.root") {
     for (uint32_t i = 0; i < tpc->GetNrows(); i++) {
         double tpcVal, tofVal;
         tpcVal = (*tpc)[i];
-        tofVal = (*tof)[i];
-        tofVsTpc->Fill(tofVal, tpcVal);
+        tofVal = (*tof)[i] / 2;
+        tofVsTpc->Fill(tpcVal, tofVal);
         // Windowed
         if (abs((2 * tpcVal) - tofVal) < selectionWindow) {
             windowTofVsTpc->Fill(tofVal, tpcVal);
@@ -83,28 +83,28 @@ void tpcVsTofSelection(const char *inFileName = "data/ringSums.root") {
         }
     }
 
-    TCanvas *canvas = new TCanvas("canvas", "canvas", 1900, 1000);
-    canvas->Divide(2, 2);
+    TCanvas *canvas = new TCanvas("canvas", "canvas");
+    // canvas->Divide(2, 2);
     
     canvas->cd(1);
     gPad->SetLogz();
-    tofVsTpc->SetTitle("TPC Multiplicity vs TOF Multiplicity, 7.7 GeV");
+    tofVsTpc->SetTitle("TofMult vs RefMult1 , 7.7 GeV");
     tofVsTpc->Draw("Colz");
 
-    canvas->cd(2);
-    gPad->SetLogz();
-    windowTofVsTpc->SetTitle(Form("TPC Multiplicity vs TOF Multiplicity, 7.7 GeV, Selection window +-%d", selectionWindow));
-    windowTofVsTpc->Draw("Colz");
+    // canvas->cd(2);
+    // gPad->SetLogz();
+    // windowTofVsTpc->SetTitle(Form("TPC Multiplicity vs TOF Multiplicity, 7.7 GeV, Selection window +-%d", selectionWindow));
+    // windowTofVsTpc->Draw("Colz");
 
-    canvas->cd(3);
-    gPad->SetLogz();
-    toleranceTofVsTpc->SetTitle(Form("TPC Multiplicity vs TOF Multiplicity, 7.7 GeV, Tolerance +-%.f%%", tolerance1 * 100));
-    toleranceTofVsTpc->Draw("Colz");
+    // canvas->cd(3);
+    // gPad->SetLogz();
+    // toleranceTofVsTpc->SetTitle(Form("TPC Multiplicity vs TOF Multiplicity, 7.7 GeV, Tolerance +-%.f%%", tolerance1 * 100));
+    // toleranceTofVsTpc->Draw("Colz");
 
-    canvas->cd(4);
-    gPad->SetLogz();
-    tolerance2TofVsTpc->SetTitle(Form("TPC Multiplicity vs TOF Multiplicity, 7.7 GeV, Max Percent Difference +-%.f%%", percentDifference * 100));
-    tolerance2TofVsTpc->Draw("Colz");
+    // canvas->cd(4);
+    // gPad->SetLogz();
+    // tolerance2TofVsTpc->SetTitle(Form("TPC Multiplicity vs TOF Multiplicity, 7.7 GeV, Max Percent Difference +-%.f%%", percentDifference * 100));
+    // tolerance2TofVsTpc->Draw("Colz");
     
     canvas->Draw();
 }

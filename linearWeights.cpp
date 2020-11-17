@@ -158,7 +158,7 @@ void linearWeights(const char *inFileName = "data/detector_data.root") {
     // Everything from here down is plotting
 
     gStyle->SetPalette(kBird);
-    gStyle->SetOptStat(11);
+    gStyle->SetOptStat(0);
     gStyle->SetStatX(0.38);
     gStyle->SetStatY(0.85);
 
@@ -170,10 +170,10 @@ void linearWeights(const char *inFileName = "data/detector_data.root") {
     int32_t realMin = 0;
     int32_t realMax = 350;
 
-    TH2D *predictVsReal = new TH2D("linear_detector", "2D Histo;TPC RefMult;Linear Weighed Prediction",
+    TH2D *predictVsReal = new TH2D("linear_simulated", "2D Histo;RefMult1;X_{#zeta'}",
                                   realBins, realMin, realMax,
                                   predictBins, predictMin, predictMax);
-    predictVsReal->SetTitle("Predicted Multiplicity vs TPC Multiplicity, 7.7 GeV, Detector Data, TOF Selector");
+    predictVsReal->SetTitle("X_{#zeta'} vs RefMult1, 7.7 GeV, TOF Selected");
 
 
     for (uint32_t i = 0; i < g->GetNrows(); i++) {
@@ -181,11 +181,11 @@ void linearWeights(const char *inFileName = "data/detector_data.root") {
     }
 
 
-    bool draw = false;
+    bool draw = true;
     if (draw) {
-        // TCanvas *canvas = new TCanvas("canvas", "canvas", 700, 500);
-        // gPad->SetLogz();
-        // predictVsReal->Draw("Colz");
+        TCanvas *canvas = new TCanvas("canvas", "canvas", 700, 500);
+        gPad->SetLogz();
+        predictVsReal->Draw("Colz");
     }
 
     std::cout << "Plotted " << g->GetNrows() << " events\n";
@@ -193,6 +193,6 @@ void linearWeights(const char *inFileName = "data/detector_data.root") {
     TFile outFile("data/epd_tpc_relations.root", "UPDATE");
     outFile.mkdir("methods", "methods", true);
     outFile.cd("methods");
-    predictVsReal->Write("linear_detector");
+    predictVsReal->Write("linear");
     outFile.Close();
 }

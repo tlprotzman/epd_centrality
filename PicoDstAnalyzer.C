@@ -124,7 +124,7 @@ void PicoDstAnalyzer(const Char_t *inFile = "data/files.list") {
     // Loop over events
     for(Long64_t iEvent=0; iEvent<events2read; iEvent++) {
         
-        if (iEvent % 100 == 0) {
+        if (iEvent % 1000 == 0) {
             std::cout << "Working on event #[" << (iEvent+1)
             << "/" << events2read << "]" << std::endl;
         }
@@ -153,12 +153,12 @@ void PicoDstAnalyzer(const Char_t *inFile = "data/files.list") {
             continue;
 
         // Selection on tof vs tpc multiplicity
-        float tolerance = 0.8;
-        UShort_t tofMult = event->btofTrayMultiplicity();
-        Int_t tpcMult = event->refMult();
-        if (!(tofMult * (1 - tolerance) < 2 * tpcMult && tofMult * (1 + tolerance) > 2 * tpcMult)) {
-            continue;
-        }
+        // float tolerance = 0.8;
+        // UShort_t tofMult = event->btofTrayMultiplicity();
+        // Int_t tpcMult = event->refMult();
+        // if (!(tofMult * (1 - tolerance) < 2 * tpcMult && tofMult * (1 + tolerance) > 2 * tpcMult)) {
+        //     continue;
+        // }
 
         
         //Fill eventwise distributions
@@ -189,13 +189,13 @@ void PicoDstAnalyzer(const Char_t *inFile = "data/files.list") {
             float nMip;
             if (epdhit->nMIP() < 0.2)   // some kind of clamping between 0.2 and 2?
                 nMip = 0;
-            else if (epdhit->nMIP() > 2)
-                nMip = 2;
+            else if (epdhit->nMIP() > 3)
+                nMip = 3;
             else nMip = epdhit->nMIP();
             ringsum[ew][(int)epdhit->tile()/2]+=nMip;
             mNmipDists[ew][epdhit->position()-1][epdhit->tile()-1]->Fill(nMip);
             mAdcDists[ew][epdhit->position()-1][epdhit->tile()-1]->Fill(epdhit->adc());
-        }  // for (UInt_t iepd = 0;iepd<Nepd;iepd++){
+        } 
         
         for (int i = 0;i<2;i++){
             for (int j = 0;j<16;j++){
@@ -233,7 +233,7 @@ void PicoDstAnalyzer(const Char_t *inFile = "data/files.list") {
     // std::cout << "SUMS:\n";
     // sums->Print();
 
-    TFile outFile("data/ringSums.root", "RECREATE");
+    TFile outFile("data/detector_data.root", "RECREATE");
     sums->Write("ring_sums");
     tpcMultiplicity->Write("tpc_multiplicity");
     tofMultiplicity->Print();

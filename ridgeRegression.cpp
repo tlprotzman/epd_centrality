@@ -101,7 +101,7 @@ TVectorD* predictTPCMultiplicity(TMatrixD *weights, TMatrixD *epdData) {
     return predictedTCPMultiplicity;
 }
 
-void ridgeRegression(const char *inFileName = "data/detector_data.root", float alpha=1e7) {
+void ridgeRegression(const char *inFileName = "data/detector_data.root", float alpha=-1e5) {
     std::cout << "Running..." <<std::endl;
     
     TFile inFile(inFileName);
@@ -129,7 +129,7 @@ void ridgeRegression(const char *inFileName = "data/detector_data.root", float a
     int32_t realMin = 0;
     int32_t realMax = 350; 
     
-    TH2D *ridge_histogram = new TH2D(Form("alpha=%f", alpha), Form("alpha=%f;TPC RefMult;Ridge Regression Prediction", alpha),
+    TH2D *ridge_histogram = new TH2D(Form("alpha=%.0e", alpha), Form("alpha=%.0e;RefMult1; X'_{#zeta'}", alpha),
                                   realBins, realMin, realMax,
                                   predictBins, predictMin, predictMax);
     for (uint32_t i = 0; i < g->GetNrows(); i++) {
@@ -139,24 +139,25 @@ void ridgeRegression(const char *inFileName = "data/detector_data.root", float a
     TFile outFile("data/epd_tpc_relations.root", "UPDATE");
     outFile.mkdir("methods", "methods", true);
     outFile.cd("methods");
-    ridge_histogram->Write(Form("ridge_%f_detector", alpha));
+    ridge_histogram->Write(Form("ridge_%.0e", alpha));
     outFile.Close();
 
-    bool draw = false;
+    bool draw = true;
     if (!draw) {
         return;
     }
 
     // Everything from here down is plotting
     gStyle->SetPalette(kBird);
-    gStyle->SetOptStat(11);
+    gStyle->SetOptStat(0);
     gStyle->SetStatX(0.38);
     gStyle->SetStatY(0.85);
 
 
-    TCanvas *canvas = new TCanvas("canvas", "canvas", 1000, 1000);
+    TCanvas *canvas = new TCanvas("canvas", "canvas");
     gPad->SetLogz();
     ridge_histogram->Draw("Colz");
+    // ridge_histogram->SaveAs(Form("histograms/figures_for_presentation/ridge_histogram_%.0f.png", alpha));
 
     std::cout << "Plotted " << g->GetNrows() << " events\n";
 }

@@ -19,6 +19,7 @@
 #include <TGraph.h>
 #include <TColor.h>
 #include <TStyle.h>
+#include <TMultiGraph.h>
 
 #include <iostream> 
 #include <vector>
@@ -99,7 +100,8 @@ void quantileComparison(TDirectory *dir, const char *name) {
     char *formatA = "hist l p";
     char *formatB = "same hist l p";
     char *format = formatB;
-    quantileTPCProjects[0]->SetTitle(name);
+    quantileTPCProjects[0]->SetTitle(Form("Centrality Comparison, %s", name));
+    quantileTPCProjects[0]->SetYTitle("Counts");
     quantileTPCProjects[0]->SetStats(0);
 
     for (int32_t i = 0; i < 3; i++) {
@@ -120,7 +122,7 @@ void quantileComparison(TDirectory *dir, const char *name) {
         
     }
     legend->AddEntry(quantileTPCProjects[0], "RefMult", "l");
-    legend->AddEntry(quantileEPDProjects[0], name, "l");
+    legend->AddEntry(quantileEPDProjects[0], "X_{#zeta'}", "l");
     legend->Draw();
 
     canvas->Draw();
@@ -155,7 +157,7 @@ TGraph *quantileVarianceComparison(TDirectory *dir, const char *name) {
         count[i] = i + 1;
     }
     TGraph *graphs;
-    graphs = new TGraph(numQuantiles, count, epdVariance);
+    graphs = new TGraph(numQuantiles - 1, count + 1, epdVariance + 1);
     graphs->SetTitle(name);
 
     return graphs;
@@ -171,6 +173,9 @@ void quantileSummary(char *infile="data/epd_tpc_relations.root") {
 
     for (TIter method = methods->begin(); method != methods->end(); ++method) {
         const char *methodName = (*method)->GetName();
+        // if (0 != strcmp(methodName, "linear_detector")) {
+        //     continue;
+        // }
         std::cout << methodName << std::endl;
         quantileComparison(quantile_directory->GetDirectory(methodName), methodName);
         varianceGraphs->push_back(quantileVarianceComparison(quantile_directory->GetDirectory(methodName), methodName));
@@ -179,24 +184,43 @@ void quantileSummary(char *infile="data/epd_tpc_relations.root") {
     // Plotting variance graph
 
     TCanvas c2("variances", "variances", 1000, 1000);
-    TLegend *legend = new TLegend(0.65, 0.25, 0.75, 0.45);
+    TLegend *legend = new TLegend(0.65, 0.65, 0.75, 0.8);
+    TMultiGraph *graph = new TMultiGraph();
     legend->SetBorderSize(0);
     legend->SetFillColor(0);
     legend->SetTextSize(0.03);
-    gPad->SetLogy();
+    // gPad->SetLogy();
+
+    const int colors[] = {8, 2, 3, 4, 1};
+    const int markers[] = {4, 27, 28, 25, 26};
 
     for (uint32_t i = 0; i < varianceGraphs->size(); i++) {
         (*varianceGraphs)[i]->SetLineColor(i + 1);
         if (i == 0) {
-            (*varianceGraphs)[i]->Draw("AC*");
+            (*varianceGraphs)[i]->Draw("AL*");
         }
         else {
-            (*varianceGraphs)[i]->Draw("C*");
+            (*varianceGraphs)[i]->Draw("L*");
         }
-        legend->AddEntry((*varianceGraphs)[i], (*varianceGraphs)[i]->GetTitle(), "l");
+
+        (*varianceGraphs)[i]->SetMarkerSize(3);
+        (*varianceGraphs)[i]->SetMarkerStyle(markers[i]);
+        (*varianceGraphs)[i]->SetLineColor(colors[i]);
+
+        graph->Add((*varianceGraphs)[i]);
+        legend->AddEntry((*varianceGraphs)[i], (*varianceGraphs)[i]->GetTitle());
     }
     c2.Draw();
-    legend->Draw();
+    TLegend *l2 = c2.BuildLegend(0.68, 0.72, 0.85, 0.88, "Method");
+    l2->SetName("Method");
+    graph->SetTitle("Centrality Ratios");
+    for (uint32_t j = 0; j < 10; j++) {
+        graph->GetXaxis()->ChangeLabel(-j, 60, .02, -1, -1, -1, Form("%d-%d%%  ", 10 * (j - 1), 10 * j));
+    }
+    graph->GetYaxis()->SetTitle("#sigma^{2}_{method}/#sigma^{2}_{refmult}");
+    graph->Draw("alp");
+    // legend->Draw();
+    l2->Draw();
     c2.SaveAs("histograms/variances.png");
     rootFile.Close();
     delete varianceGraphs;
