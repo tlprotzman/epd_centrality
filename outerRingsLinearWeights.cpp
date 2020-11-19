@@ -148,7 +148,7 @@ TVectorD* predictTPCMultiplicity(TMatrixD *weights, TMatrixD *epdData) {
     return predictedTCPMultiplicity;
 }
 
-void outerRingsLinearWeights(const char *inFileName = "data/simulated_data.root") {
+void outerRingsLinearWeights(const char *inFileName = "data/detector_data.root") {
     std::cout << "Running..." <<std::endl;
     
     TFile inFile(inFileName);
@@ -156,12 +156,11 @@ void outerRingsLinearWeights(const char *inFileName = "data/simulated_data.root"
     TVectorD *g;
     inFile.GetObject("ring_sums", c);           // should probably check for existance but...
     inFile.GetObject("tpc_multiplicity", g);
-    // TMatrixD *c = new TMatrixD(7, cI->GetNcols());
-    // *c = cI->GetSub(0, cI->GetNrows() - 1, 0, cI->GetNcols() - 1);
-    // c->Print();
-    // TVectorD *g = gI + 7;
-    // g->Print();
-    // return;
+    TMatrixD *detector_sums;
+    TVectorD *detector_refmult;
+    TFile detector("data/detector_data.root");
+    detector.GetObject("ring_sums", detector_sums);
+
 
     std::cout << "Generating Weights.." << std::endl;
     TMatrixD *weights = generateWeights(c, g);
@@ -170,8 +169,11 @@ void outerRingsLinearWeights(const char *inFileName = "data/simulated_data.root"
     weights->Print();
 
     std::cout << "Applying linear weights..." << std::endl;
-    TVectorD *predictions = predictTPCMultiplicity(weights, c);
+    TVectorD *predictions = predictTPCMultiplicity(weights, detector_sums);
     inFile.Close();
+    detector.GetObject("tpc_multiplicity", g);
+    detector.Close();
+    
 
     // Everything from here down is plotting
 
@@ -208,7 +210,7 @@ void outerRingsLinearWeights(const char *inFileName = "data/simulated_data.root"
 
     std::cout << "Plotted " << g->GetNrows() << " events\n";
 
-    TFile outFile("data/epd_tpc_relations_simulated.root", "UPDATE");
+    TFile outFile("data/epd_tpc_relations.root", "UPDATE");
     outFile.mkdir("methods", "methods", true);
     outFile.cd("methods");
     weights->Write("linear_weights_outer");

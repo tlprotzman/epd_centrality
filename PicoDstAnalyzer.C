@@ -153,12 +153,12 @@ void PicoDstAnalyzer(const Char_t *inFile = "data/files.list") {
             continue;
 
         // Selection on tof vs tpc multiplicity
-        // float tolerance = 0.8;
-        // UShort_t tofMult = event->btofTrayMultiplicity();
-        // Int_t tpcMult = event->refMult();
-        // if (!(tofMult * (1 - tolerance) < 2 * tpcMult && tofMult * (1 + tolerance) > 2 * tpcMult)) {
-        //     continue;
-        // }
+        float tolerance = 0.8;
+        UShort_t tofMult = event->btofTrayMultiplicity();
+        Int_t tpcMult = event->refMult();
+        if (!(tofMult * (1 - tolerance) < 2 * tpcMult && tofMult * (1 + tolerance) > 2 * tpcMult)) {
+            continue;
+        }
 
         
         //Fill eventwise distributions
