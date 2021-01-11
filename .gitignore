@@ -1,4 +1,6 @@
 .vscode/*
+python_rewrite/.vscode/*
+python_rewrite/__pycache__/*
 StRoot/*
 *.root
 *.zip
