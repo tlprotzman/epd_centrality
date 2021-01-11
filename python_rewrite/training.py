@@ -36,7 +36,8 @@ class centrality_model():
         
         inFile = ROOT.TFile(data_input)
         
-        ring_data = inFile.Get("ring_sums")    # Open and read in ring data from the ROOT file
+        # Read in the inputs to the algorithm, the sums in each ring in the EPD
+        ring_data = inFile.Get("ring_sums")
         self.num_events = ring_data.GetNcols()
         if ring_data.GetNrows() != 16:
             raise ValueError("16 rows were not found importing training data")
@@ -47,16 +48,44 @@ class centrality_model():
             for j in range(self.num_events):
                 self.training_input[j][i] = ring_data[i][j]
 
+        # Read in the target we would like to fit to, the impact parameter
         target_data = None
         if self.simulation:
             target_data = inFile.Get("impact_parameter")
         else:
             target_data = inFile.Get("tpc_multiplicity")
+            print("ran")
 
         if target_data.GetNrows() != self.num_events:
             raise ValueError("Number of events are different for ring data and b/refmult")
 
+        self.training_target = np.empty(self.num_events)
 
+        for i in range(self.num_events):
+            self.training_target[i] = target_data[i]
+
+        # Read in the parameter we would like to evaluate against, currently refmult from the TPC
+        if not self.simulation:
+            self.training_evaluation = self. training_target # If we are using this with detector data, the impact parameter is not known
+        else:
+            evaluation_data = inFile.Get("tpc_multiplicity")
+            print("also ran")
+            if evaluation_data.GetNrows() != self.num_events:
+                raise ValueError("Number of events are different for ring data and refmult")
+
+            self.training_evaluation = np.empty(self.num_events)
+
+            for i in range(self.num_events):
+                self.training_evaluation[i] = evaluation_data[i]
+        
+
+        print("Training Data:")
+        print(self.training_input)
+        print("\n\nTarget Data:")
+        print(self.training_target)
+        print("\n\nEvaluation Data")
+        print(self.training_evaluation)
+        
         
 
         inFile.Close()
